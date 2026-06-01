@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
-class StorageProvider(ABC):
+class StorageTTSProvider(ABC):
 
     @abstractmethod
     def save_audio(self) -> str:
         pass
-        

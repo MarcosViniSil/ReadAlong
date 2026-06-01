@@ -1,6 +1,6 @@
-from src.storage import StorageProvider
+from storage import StorageTTSProvider
 
-class StorageProviderImpl(StorageProvider):
+class StorageProviderImpl(StorageTTSProvider):
     
     def save_audio(self) -> str:
         print("hello")
