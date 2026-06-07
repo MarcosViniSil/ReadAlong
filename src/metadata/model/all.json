@@ -1,0 +1,65 @@
+{
+  "bookName": "O Segredo do Vale Perdido",
+  "bookCode": "LIV_VALE_2024",
+  "pages": [
+    {
+      "pageCode": "PAG_01",
+      "audioFile": "audio_pag01.mp3",
+      "Sentence": [
+        {
+          "pageCode": "PAG_01",
+          "text": "Capítulo Um: O Chamado.",
+          "segmentCode": "SEN_01_001",
+          "duration": 2.5,
+          "start": 0.0,
+          "end": 2.5,
+          "nextSegmentCode": "SEN_01_002"
+        },
+        {
+          "pageCode": "PAG_01",
+          "text": "Há muitos anos, no Vale Perdido, uma lenda era sussurrada entre os anciões.",
+          "segmentCode": "SEN_01_002",
+          "duration": 5.3,
+          "start": 2.5,
+          "end": 7.8,
+          "nextSegmentCode": "SEN_01_003"
+        },
+        {
+          "pageCode": "PAG_01",
+          "text": "Diziam que quem encontrasse a Pedra da Aurora teria seus desejos realizados.",
+          "segmentCode": "SEN_01_003",
+          "duration": 4.9,
+          "start": 7.8,
+          "end": 12.7,
+          "nextSegmentCode": ""
+        }
+      ],
+      "nextPageCode": "PAG_02"
+    },
+    {
+      "pageCode": "PAG_02",
+      "audioFile": "audio_pag02.mp3",
+      "Sentence": [
+        {
+          "pageCode": "PAG_02",
+          "text": "A jovem Elara sempre duvidou dessa história, até o dia em que encontrou um mapa misterioso.",
+          "segmentCode": "SEN_02_001",
+          "duration": 6.1,
+          "start": 0.0,
+          "end": 6.1,
+          "nextSegmentCode": "SEN_02_002"
+        },
+        {
+          "pageCode": "PAG_02",
+          "text": "O mapa brilhava com uma luz azulada e parecia pulsar como se tivesse vida própria.",
+          "segmentCode": "SEN_02_002",
+          "duration": 5.7,
+          "start": 6.1,
+          "end": 11.8,
+          "nextSegmentCode": ""
+        }
+      ],
+      "nextPageCode": ""
+    }
+  ]
+}

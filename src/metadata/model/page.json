@@ -1,0 +1,27 @@
+{
+  "pageCode": "PG002",
+  "audioFile": "capitulo2_audio.mp3",
+  "Sentence": [
+    {
+      "sentenceType": "TEXT",
+      "pageCode": "PG002",
+      "text": "O sol nascia por trás das montanhas, iluminando o vale.",
+      "segmentCode": "SENT004",
+      "duration": 3.5,
+      "start": 0.0,
+      "end": 3.5,
+      "nextSegmentCode": "SENT005"
+    },
+    {
+      "sentenceType": "TEXT",
+      "pageCode": "PG002",
+      "text": "Os pássaros cantavam alegremente anunciando um novo dia.",
+      "segmentCode": "SENT005",
+      "duration": 4.2,
+      "start": 3.5,
+      "end": 7.7,
+      "nextSegmentCode": ""
+    }
+  ],
+  "nextPageCode": "PG003"
+}

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from src.models.Segment import Segment
+from models.Page import Page
 
 @dataclass
 class Book:
-    id: str
-    title: str
-    segments: list[Segment]
+    bookName: str
+    bookCode: str
+    pages: list[Page]
