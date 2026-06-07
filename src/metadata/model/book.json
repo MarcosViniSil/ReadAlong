@@ -1,0 +1,24 @@
+{
+  "bookName": "Aventuras na Floresta Encantada",
+  "bookCode": "LIV_FLO_001",
+  "pages": [
+    {
+      "pageCode": "PG001",
+      "audioFile": "capitulo1_audio.mp3",
+      "Sentence": ["SENT001", "SENT002", "SENT003"],
+      "nextPageCode": "PG002"
+    },
+    {
+      "pageCode": "PG002",
+      "audioFile": "capitulo2_audio.mp3",
+      "Sentence": ["SENT004", "SENT005"],
+      "nextPageCode": "PG003"
+    },
+    {
+      "pageCode": "PG003",
+      "audioFile": "capitulo3_audio.mp3",
+      "Sentence": ["SENT006"],
+      "nextPageCode": ""
+    }
+  ]
+}
