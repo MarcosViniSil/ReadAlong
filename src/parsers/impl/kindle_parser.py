@@ -13,9 +13,7 @@ class KindleParser(BookParser):
     def extract_text(self, file_path: Path) -> str:
         epub_path = self.__convert_kindle_to_epub(file_path)
 
-        self.parser.extract_text(epub_path)
-
-        return ""
+        return self.parser.extract_text(epub_path)
 
     def __convert_kindle_to_epub(self,kindle_path:Path) -> str:
         

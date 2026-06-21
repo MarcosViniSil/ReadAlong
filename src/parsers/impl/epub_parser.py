@@ -1,3 +1,4 @@
+from models.Element import Element
 from parsers.bookParserProvider import BookParser
 from pathlib import Path
 from sympy import content
@@ -9,9 +10,10 @@ output_dir.mkdir(exist_ok=True)
 
 class EpubParser(BookParser):
 
-    def extract_text(self, file_path: Path) -> str:
+    def extract_text(self, file_path: Path) -> list[Element]:
         book = epub.read_epub(file_path)
         image_map = self.extract_images(file_path)
+        elements:list[Element] = []
         
         for item_id, _ in book.spine:
 
@@ -44,6 +46,7 @@ class EpubParser(BookParser):
                         "type": "img",
                         "src": image_map.get(filename)
                     })
+                    elements.append(Element("img",None,None,image_map.get(filename)))
 
 
                 elif element.name == "a":
@@ -56,6 +59,8 @@ class EpubParser(BookParser):
                         ),
                         "href": element.get("href")
                     })
+
+                    elements.append(Element("a",element.get_text(" ",strip=True),element.get("href"),None))
 
 
                 else:
@@ -71,7 +76,9 @@ class EpubParser(BookParser):
                             "type": element.name,
                             "text": text[:50]
                         })
-        return ""
+                        elements.append(Element(element.name,text[:50],None,None))
+
+        return elements
 
     def extract_images(self,file_path:Path) -> dict:
         book = epub.read_epub(file_path)

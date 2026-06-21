@@ -25,7 +25,7 @@ class BookPipeline():
             extension = self.filetypeDetection.detect_extension(file_path)
             parser = self.parser_factory.create(extension)
             content = parser.extract_text(file_path)
-
+            print(content)
         except Exception as e:
             LoggerService.log_exception(
                 "Error extracting text from %s",
@@ -35,20 +35,20 @@ class BookPipeline():
         
         LoggerService.log_info(f"BookPipeline - content from file path {file_path} received and with length of {len(content)}")
         
-        try:
-            phrases = self.splitter.split_into_chunks(content)
-            self.ttsService.generate("test",phrases)
-        except Exception as e:
-            LoggerService.log_exception(
-                "Error splitting content into chunks and generating audio %s",
-                file_path
-            )
-            raise BookProcessingError("An error occurred when trying to generate audio")
+        # try:
+        #     phrases = self.splitter.split_into_chunks(content)
+        #     self.ttsService.generate("test",phrases)
+        # except Exception as e:
+        #     LoggerService.log_exception(
+        #         "Error splitting content into chunks and generating audio %s",
+        #         file_path
+        #     )
+        #     raise BookProcessingError("An error occurred when trying to generate audio")
         
-        LoggerService.log_info(f"BookPipeline - audio generated successfully with {len(phrases)} phrases")
+        #LoggerService.log_info(f"BookPipeline - audio generated successfully with {len(phrases)} phrases")
   
         return PipelineResult(
             file_path=file_path,
-            chunks=len(phrases),
+            chunks=0,
             audio_generated=True
         )
