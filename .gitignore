@@ -52,6 +52,10 @@ coverage.xml
 .pytest_cache/
 cover/
 
+imgs/
+audio/
+kindle_converted
+
 # Translations
 *.mo
 *.pot
