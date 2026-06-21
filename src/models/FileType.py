@@ -5,3 +5,4 @@ class FileType(Enum):
     EPUB = ".epub"
     MOBI = ".mobi"
     PDF = ".pdf"
+    AMAZON = ".azw3"

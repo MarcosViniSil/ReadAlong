@@ -9,7 +9,7 @@ UPLOAD_DIR = Path("./temp")
 
 class FileStorageService(FileStorageProvider):
     
-    def save_file(self,file: UploadFile) -> str:
+    def save_file(self,file: UploadFile) -> Path:
         try:
             LoggerService.log_info(f"FileStorageService - saving file locally by name {file.filename}")
             UPLOAD_DIR.mkdir(exist_ok=True)
