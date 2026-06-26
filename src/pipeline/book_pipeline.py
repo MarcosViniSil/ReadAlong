@@ -33,7 +33,7 @@ class BookPipeline():
             )
             raise e
         
-        LoggerService.log_info(f"BookPipeline - content from file path {file_path} received and with length of {len(content)}")
+        #LoggerService.log_info(f"BookPipeline - content from file path {file_path} received and with length of {len(content)}")
         
         # try:
         #     phrases = self.splitter.split_into_chunks(content)
