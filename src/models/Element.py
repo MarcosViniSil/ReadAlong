@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Optional
-from models.Page import Page
 
 @dataclass
 class Element:
@@ -8,3 +7,7 @@ class Element:
     text: Optional[str]
     href: Optional[str]
     src: Optional[str]
+
+    def __repr__(self):
+        preview = (self.text[:60].replace("\n", " ") + "...") if self.text and len(self.text) > 60 else (self.text or "")
+        return f"<{self.type}> {preview}"

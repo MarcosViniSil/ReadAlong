@@ -18,3 +18,4 @@ class NodeType(Enum):
     LINK = "Link"
     SEPARATOR = "Separator"
     DOCUMENT = "document"
+    TEXT = "text" 

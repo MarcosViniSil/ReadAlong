@@ -1,157 +1,231 @@
-from collections import defaultdict
+from pathlib import Path
 
+from bs4 import BeautifulSoup, NavigableString, Tag
+from ebooklib import ITEM_IMAGE, epub
+from mathml_to_latex.converter import MathMLToLaTeX
 from models.Node import Node
 from models.NodeType import NodeType
-from models.Element import Element
 from parsers.bookParserProvider import BookParser
-from pathlib import Path
-from sympy import content
-from ebooklib import epub, ITEM_IMAGE,ITEM_DOCUMENT
-from bs4 import BeautifulSoup,Tag, NavigableString
+
 
 output_dir = Path("imgs")
 output_dir.mkdir(exist_ok=True)
 
+
 class EpubParser(BookParser):
+
+    # -------------------------
+    # Utilidades
+    # -------------------------
+
+    def parse_children(self, parent, image_map):
+        result = []
+
+        for child in parent.children:
+            result.extend(self.parse_node(child, image_map))
+
+        return result
+
+    def text_node(self, text):
+        text = " ".join(str(text).split())
+
+        if not text:
+            return []
+
+        return [
+            Node(
+                type=NodeType.TEXT,
+                text=text
+            )
+        ]
+
+    # -------------------------
+    # Parser
+    # -------------------------
 
     def parse_node(self, node, image_map):
 
+        # texto
         if isinstance(node, NavigableString):
-            return None
+            return self.text_node(node)
 
         if not isinstance(node, Tag):
-            return None
-
+            return []
+        print("node.name ", node.name)
         match node.name:
+            # --------------------
+            # Headings
+            # --------------------
 
             case "h1" | "h2" | "h3" | "h4" | "h5" | "h6":
 
-                return Node(
-                    type=NodeType.HEADING,
-                    text=node.get_text(" ", strip=True),
-                    metadata={
-                        "level": int(node.name[1])
-                    }
-                )
+                return [
+                    Node(
+                        type=NodeType.HEADING,
+                        metadata={
+                            "level": int(node.name[1])
+                        },
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
+
+            # --------------------
+            # Paragraph
+            # --------------------
 
             case "p":
 
-                paragraph = Node(type=NodeType.PARAGRAPH)
+                return [
+                    Node(
+                        type=NodeType.PARAGRAPH,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
-                for child in node.children:
+            # --------------------
+            # Blockquote
+            # --------------------
 
-                    parsed = self.parse_node(child, image_map)
+            case "blockquote":
 
-                    if parsed:
-                        paragraph.children.append(parsed)
+                return [
+                    Node(
+                        type=NodeType.QUOTE,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
-                if not paragraph.children:
+            # --------------------
+            # Lists
+            # --------------------
 
-                    paragraph.text = node.get_text(" ", strip=True)
+            case "ul":
+                print("match ul")
+                return [
+                    Node(
+                        type=NodeType.LIST,
+                        metadata={"ordered": False},
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
-                return paragraph
+            case "ol":
+
+                return [
+                    Node(
+                        type=NodeType.LIST,
+                        metadata={"ordered": True},
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
+
+            case "li":
+                print("match li")
+                return [
+                    Node(
+                        type=NodeType.LIST_ITEM,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
+
+            # --------------------
+            # Image
+            # --------------------
 
             case "img":
 
                 filename = Path(node.get("src", "")).name
 
-                return Node(
-                    type=NodeType.IMAGE,
-                    metadata={
-                        "src": image_map.get(filename)
-                    }
-                )
+                return [
+                    Node(
+                        type=NodeType.IMAGE,
+                        metadata={
+                            "src": image_map.get(filename)
+                        }
+                    )
+                ]
 
-            case "blockquote":
-
-                quote = Node(type=NodeType.QUOTE)
-
-                for child in node.children:
-
-                    parsed = self.parse_node(child, image_map)
-
-                    if parsed:
-                        quote.children.append(parsed)
-
-                return quote
+            # --------------------
+            # Table
+            # --------------------
 
             case "table":
 
-                table = Node(type=NodeType.TABLE)
-
-                for child in node.children:
-
-                    parsed = self.parse_node(child, image_map)
-
-                    if parsed:
-                        table.children.append(parsed)
-
-                return table
+                return [
+                    Node(
+                        type=NodeType.TABLE,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
             case "tr":
 
-                row = Node(type=NodeType.ROW)
-
-                for child in node.children:
-
-                    parsed = self.parse_node(child, image_map)
-
-                    if parsed:
-                        row.children.append(parsed)
-
-                return row
+                return [
+                    Node(
+                        type=NodeType.ROW,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
             case "td" | "th":
 
-                cell = Node(type=NodeType.CELL)
+                return [
+                    Node(
+                        type=NodeType.CELL,
+                        children=self.parse_children(node, image_map)
+                    )
+                ]
 
-                for child in node.children:
+            # --------------------
+            # Code
+            # --------------------
 
-                    parsed = self.parse_node(child, image_map)
+            case "pre":
 
-                    if parsed:
-                        cell.children.append(parsed)
-
-                if not cell.children:
-
-                    cell.text = node.get_text(" ", strip=True)
-
-                return cell
+                return [
+                    Node(
+                        type=NodeType.CODE,
+                        text=node.get_text("\n")
+                    )
+                ]
 
             case "code":
 
-                return Node(
-                    type=NodeType.CODE,
-                    text=node.get_text("\n")
-                )
+                return [
+                    Node(
+                        type=NodeType.CODE,
+                        text=node.get_text()
+                    )
+                ]
+
+            # --------------------
+            # MathML
+            # --------------------
 
             case "math":
+                return [
+                    Node(
+                        type=NodeType.FORMULA,
+                        metadata={
+                            "raw": str(MathMLToLaTeX().convert(str(node)))
+                        }
+                    )
+                ]
 
-                return Node(
-                    type=NodeType.FORMULA,
-                    metadata={
-                        "raw": str(node)
-                    }
-                )
+            # --------------------
+            # Containers transparentes
+            # --------------------
 
             case _:
 
-                # tags como div, span, body...
-                container = Node(type=node.name)
+                return self.parse_children(node, image_map)
 
-                for child in node.children:
-
-                    parsed = self.parse_node(child, image_map)
-
-                    if parsed:
-                        container.children.append(parsed)
-
-                if container.children:
-                    return container
-
-                return None
+    # -------------------------
+    # Documento
+    # -------------------------
 
     def extract_text(self, file_path):
+        self.__check_file_existence(file_path)
 
         book = epub.read_epub(file_path)
 
@@ -176,24 +250,25 @@ class EpubParser(BookParser):
             if body is None:
                 continue
 
-            for child in body.children:
-
-                parsed = self.parse_node(child, image_map)
-
-                if parsed:
-                    document.children.append(parsed)
+            document.children.extend(
+                self.parse_children(body, image_map)
+            )
 
         return document
 
-    def extract_images(self,file_path:Path) -> dict:
-        book = epub.read_epub(file_path)
-        image_map = {}
-  
-        for img in book.get_items_of_type(ITEM_IMAGE):
-            local_path = output_dir / Path(img.file_name).name
+    # -------------------------
+    # Imagens
+    # -------------------------
 
-            if not local_path:
-                continue
+    def extract_images(self, file_path):
+
+        book = epub.read_epub(file_path)
+
+        image_map = {}
+
+        for img in book.get_items_of_type(ITEM_IMAGE):
+
+            local_path = output_dir / Path(img.file_name).name
 
             with open(local_path, "wb") as f:
                 f.write(img.get_content())
@@ -201,3 +276,10 @@ class EpubParser(BookParser):
             image_map[Path(img.file_name).name] = str(local_path)
 
         return image_map
+
+    def __check_file_existence(self, file_path: str) -> None:
+        file_path = Path(file_path)
+
+        if not file_path.is_file():
+            raise ValueError("The file does not exists")
+ 

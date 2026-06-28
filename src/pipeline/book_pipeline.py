@@ -26,6 +26,7 @@ class BookPipeline():
             parser = self.parser_factory.create(extension)
             content = parser.extract_text(file_path)
             print(content)
+            print("\n".join(content.linearize()))
         except Exception as e:
             LoggerService.log_exception(
                 "Error extracting text from %s",
