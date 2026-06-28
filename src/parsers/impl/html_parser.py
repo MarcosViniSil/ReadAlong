@@ -1,20 +1,12 @@
 from pathlib import Path
 
-from bs4 import BeautifulSoup, NavigableString, Tag
-from ebooklib import ITEM_IMAGE, epub
-from mathml_to_latex.converter import MathMLToLaTeX
 from models.Node import Node
 from models.enum.HtmlTag import HtmlTag
+from mathml_to_latex.converter import MathMLToLaTeX
+from bs4 import NavigableString, Tag
 from models.enum.NodeType import NodeType
-from parsers.bookParserProvider import BookParser
 
-
-output_dir = Path("imgs")
-output_dir.mkdir(exist_ok=True)
-
-
-class EpubParser(BookParser):
-
+class HTMLParser:
     def __init__(self):
         self.handlers = {
             HtmlTag.PARAGRAPH: self.parse_paragraph,
@@ -55,10 +47,6 @@ class EpubParser(BookParser):
                 text=text
             )
         ]
-
-    # -------------------------
-    # Parser
-    # -------------------------
 
     def parse_node(self, node, image_map):
 
@@ -146,63 +134,3 @@ class EpubParser(BookParser):
     def parse_math_tag(self, node, image_map):
         metadata={"raw": self.math_converter.convert(str(node))}
         return self.parse_tag(node,image_map,NodeType.FORMULA,metadata)  
-
-    # -------------------------
-    # Documento
-    # -------------------------
-
-    def extract_text(self, file_path):
-        self.__check_file_existence(file_path)
-
-        book = epub.read_epub(file_path)
-
-        image_map = self.extract_images(book)
-
-        document = Node(type=NodeType.DOCUMENT)
-
-        for item_id, _ in book.spine:
-
-            item = book.get_item_with_id(item_id)
-            if item is None:
-                continue
-
-            soup = BeautifulSoup(
-                item.get_content(),
-                "html.parser"
-            )
-
-            body = soup.find("body")
-
-            if body is None:
-                continue
-
-            document.children.extend(
-                self.parse_children(body, image_map)
-            )
-
-        return document
-
-    # -------------------------
-    # Imagens
-    # -------------------------
-
-    def extract_images(self, book):
-        image_map = {}
-
-        for img in book.get_items_of_type(ITEM_IMAGE):
-
-            local_path = output_dir / Path(img.file_name).name
-
-            with open(local_path, "wb") as f:
-                f.write(img.get_content())
-
-            image_map[Path(img.file_name).name] = str(local_path)
-
-        return image_map
-
-    def __check_file_existence(self, file_path: str) -> None:
-        file_path = Path(file_path)
-
-        if not file_path.is_file():
-            raise ValueError("The file does not exists")
- 

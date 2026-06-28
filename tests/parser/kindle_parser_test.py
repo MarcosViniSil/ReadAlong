@@ -1,14 +1,17 @@
+
 from pathlib import Path
 
 import pytest
 
 from models.Node import Node
-from parsers.impl.epub_parser import EpubParser
+from parsers.impl.epub.epub_parser import EpubParser
+from parsers.impl.html_parser import HTMLParser
 from parsers.impl.kindle_parser import KindleParser
 
 @pytest.fixture
 def parser():
-    epub_parser = EpubParser()
+    html_parser = HTMLParser()
+    epub_parser = EpubParser(html_parser)
     return KindleParser(epub_parser)
 
 def test_mobi_parser_when_file_exists(parser) -> Node:
