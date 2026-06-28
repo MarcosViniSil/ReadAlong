@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from models.Node import Node
-from models.NodeType import NodeType
+from models.enum.NodeType import NodeType
 from parsers.impl.epub_parser import EpubParser
 from parsers.impl.kindle_parser import KindleParser
 from parsers.impl.txt_parser import TxtParser

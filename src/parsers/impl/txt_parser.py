@@ -2,7 +2,7 @@ from pathlib import Path
 
 from models.Element import Element
 from models.Node import Node
-from models.NodeType import NodeType
+from models.enum.NodeType import NodeType
 from parsers.bookParserProvider import BookParser
 
 class TxtParser(BookParser):

@@ -4,7 +4,8 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from ebooklib import ITEM_IMAGE, epub
 from mathml_to_latex.converter import MathMLToLaTeX
 from models.Node import Node
-from models.NodeType import NodeType
+from models.enum.HtmlTag import HtmlTag
+from models.enum.NodeType import NodeType
 from parsers.bookParserProvider import BookParser
 
 
@@ -14,17 +15,33 @@ output_dir.mkdir(exist_ok=True)
 
 class EpubParser(BookParser):
 
-    # -------------------------
-    # Utilidades
-    # -------------------------
+    def __init__(self):
+        self.handlers = {
+            HtmlTag.PARAGRAPH: self.parse_paragraph,
+            HtmlTag.UNORDERED_LIST: self.parse_unordered_list,
+            HtmlTag.ORDERED_LIST: self.parse_ordered_list,
+            HtmlTag.LIST_ITEM: self.parse_list_item,
+            HtmlTag.IMAGE: self.parse_image,
+            HtmlTag.MATH: self.parse_math_tag,
+            HtmlTag.TABLE: self.parse_table,
+            HtmlTag.HEADER_1: self.parse_heading,
+            HtmlTag.HEADER_2: self.parse_heading,
+            HtmlTag.HEADER_3: self.parse_heading,
+            HtmlTag.HEADER_4: self.parse_heading,
+            HtmlTag.HEADER_5: self.parse_heading,
+            HtmlTag.HEADER_6: self.parse_heading,
+            HtmlTag.BLOCKQUOTE: self.parse_blockquote,
+            HtmlTag.TABLE_ROW: self.parse_table_row,
+            HtmlTag.TABLE_DATA: self.parse_table_data,
+            HtmlTag.TABLE_HEADER: self.parse_table_data,
+            HtmlTag.PRE: self.parse_pre_tag,
+            HtmlTag.CODE: self.parse_code_tag,
+        }
+        self.math_converter = MathMLToLaTeX()
 
     def parse_children(self, parent, image_map):
-        result = []
-
         for child in parent.children:
-            result.extend(self.parse_node(child, image_map))
-
-        return result
+            yield from self.parse_node(child, image_map)
 
     def text_node(self, text):
         text = " ".join(str(text).split())
@@ -45,180 +62,90 @@ class EpubParser(BookParser):
 
     def parse_node(self, node, image_map):
 
-        # texto
         if isinstance(node, NavigableString):
             return self.text_node(node)
 
         if not isinstance(node, Tag):
             return []
-        print("node.name ", node.name)
-        match node.name:
-            # --------------------
-            # Headings
-            # --------------------
 
-            case "h1" | "h2" | "h3" | "h4" | "h5" | "h6":
+        try:
+            handler = self.handlers.get(HtmlTag(node.name))
+        except ValueError:
+            handler = None
 
-                return [
-                    Node(
-                        type=NodeType.HEADING,
-                        metadata={
-                            "level": int(node.name[1])
-                        },
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+        if handler:
+            return handler(node, image_map)
 
-            # --------------------
-            # Paragraph
-            # --------------------
+        return self.parse_children(node, image_map)
+    
+    def parse_tag(self, node, image_map:dict, tag:NodeType, metadata:dict):
+        return [
+            Node(
+            type=tag,
+            metadata= metadata or {},
+            children=list(self.parse_children(node, image_map))
+            )
+        ]
 
-            case "p":
+    def parse_paragraph(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.PARAGRAPH,None)
 
-                return [
-                    Node(
-                        type=NodeType.PARAGRAPH,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+    def parse_heading(self, node, image_map):
+        metadata = {"level": int(node.name[1])}
+        return self.parse_tag(node,image_map,NodeType.HEADING,metadata)
+    
+    def parse_blockquote(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.QUOTE,None)  
 
-            # --------------------
-            # Blockquote
-            # --------------------
+    def parse_unordered_list(self, node, image_map):
+        metadata={"ordered": False}
+        return self.parse_tag(node,image_map,NodeType.LIST,metadata)       
 
-            case "blockquote":
+    def parse_ordered_list(self, node, image_map):
+        metadata={"ordered": True}
+        return self.parse_tag(node,image_map,NodeType.LIST,metadata)
 
-                return [
-                    Node(
-                        type=NodeType.QUOTE,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+    def parse_list_item(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.LIST_ITEM,None)  
 
-            # --------------------
-            # Lists
-            # --------------------
+    
+    def parse_image(self, node, image_map):
+        filename = Path(node.get("src", "")).name
+        metadata={"src": image_map.get(filename)}
+        return self.parse_tag(node,image_map,NodeType.IMAGE,metadata)  
+     
 
-            case "ul":
-                print("match ul")
-                return [
-                    Node(
-                        type=NodeType.LIST,
-                        metadata={"ordered": False},
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+    def parse_table(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.TABLE,None)  
 
-            case "ol":
 
-                return [
-                    Node(
-                        type=NodeType.LIST,
-                        metadata={"ordered": True},
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+    def parse_table_row(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.ROW,None)  
 
-            case "li":
-                print("match li")
-                return [
-                    Node(
-                        type=NodeType.LIST_ITEM,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
+    def parse_table_data(self, node, image_map):
+        return self.parse_tag(node,image_map,NodeType.CELL,None)  
 
-            # --------------------
-            # Image
-            # --------------------
 
-            case "img":
+    def parse_pre_tag(self, node, image_map):
+        return [
+            Node(
+                type=NodeType.CODE,
+                text=node.get_text()
+            )
+        ]
 
-                filename = Path(node.get("src", "")).name
+    def parse_code_tag(self, node, image_map):
+        return [
+            Node(
+                type=NodeType.CODE,
+                text=node.get_text()
+            )
+        ]
+    
 
-                return [
-                    Node(
-                        type=NodeType.IMAGE,
-                        metadata={
-                            "src": image_map.get(filename)
-                        }
-                    )
-                ]
-
-            # --------------------
-            # Table
-            # --------------------
-
-            case "table":
-
-                return [
-                    Node(
-                        type=NodeType.TABLE,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
-
-            case "tr":
-
-                return [
-                    Node(
-                        type=NodeType.ROW,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
-
-            case "td" | "th":
-
-                return [
-                    Node(
-                        type=NodeType.CELL,
-                        children=self.parse_children(node, image_map)
-                    )
-                ]
-
-            # --------------------
-            # Code
-            # --------------------
-
-            case "pre":
-
-                return [
-                    Node(
-                        type=NodeType.CODE,
-                        text=node.get_text("\n")
-                    )
-                ]
-
-            case "code":
-
-                return [
-                    Node(
-                        type=NodeType.CODE,
-                        text=node.get_text()
-                    )
-                ]
-
-            # --------------------
-            # MathML
-            # --------------------
-
-            case "math":
-                return [
-                    Node(
-                        type=NodeType.FORMULA,
-                        metadata={
-                            "raw": str(MathMLToLaTeX().convert(str(node)))
-                        }
-                    )
-                ]
-
-            # --------------------
-            # Containers transparentes
-            # --------------------
-
-            case _:
-
-                return self.parse_children(node, image_map)
+    def parse_math_tag(self, node, image_map):
+        metadata={"raw": self.math_converter.convert(str(node))}
+        return self.parse_tag(node,image_map,NodeType.FORMULA,metadata)  
 
     # -------------------------
     # Documento
@@ -229,14 +156,13 @@ class EpubParser(BookParser):
 
         book = epub.read_epub(file_path)
 
-        image_map = self.extract_images(file_path)
+        image_map = self.extract_images(book)
 
         document = Node(type=NodeType.DOCUMENT)
 
         for item_id, _ in book.spine:
 
             item = book.get_item_with_id(item_id)
-
             if item is None:
                 continue
 
@@ -260,10 +186,7 @@ class EpubParser(BookParser):
     # Imagens
     # -------------------------
 
-    def extract_images(self, file_path):
-
-        book = epub.read_epub(file_path)
-
+    def extract_images(self, book):
         image_map = {}
 
         for img in book.get_items_of_type(ITEM_IMAGE):

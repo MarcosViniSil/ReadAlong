@@ -1,4 +1,4 @@
-from models.FileType import FileType
+from models.enum.FileType import FileType
 from parsers.impl.epub_parser import EpubParser
 from parsers.impl.kindle_parser import KindleParser
 from parsers.factory.parserFactory import ParserFactory

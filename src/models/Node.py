@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from models.NodeType import NodeType
+from models.enum.NodeType import NodeType
 
 
 @dataclass
@@ -15,7 +15,6 @@ class Node:
         return "\n".join(lines)
 
     def _format_tree(self, lines, prefix, is_last):
-        print("self.type format tree",self.type.value)
         label = self.type.value if isinstance(self.type, NodeType) else str(self.type)
 
         if self.text:
@@ -46,7 +45,6 @@ class Node:
     
     
     def _linearize(self, output):
-        print("self.type ",self.type.value)
         if self.text:
             
             output.append(

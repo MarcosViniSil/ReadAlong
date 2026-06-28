@@ -3,7 +3,7 @@
 import pytest
 
 from models.Node import Node
-from models.NodeType import NodeType
+from models.enum.NodeType import NodeType
 from parsers.impl.epub_parser import EpubParser
 
 
