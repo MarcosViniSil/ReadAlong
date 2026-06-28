@@ -1,0 +1,21 @@
+from enum import Enum
+
+class NodeType(Enum):
+    METADATA = "Metadata"
+    CHAPTER = "Chapter"
+    SECTION = "Section"
+    HEADING = "Heading"
+    PARAGRAPH = "Paragraph"
+    IMAGE = "Image"
+    TABLE = "Table"
+    ROW = "Row"
+    CELL = "Cell"
+    LIST = "List"
+    LIST_ITEM = "ListItem"
+    QUOTE = "Quote"
+    CODE = "Code"
+    FORMULA = "Formula"
+    LINK = "Link"
+    SEPARATOR = "Separator"
+    DOCUMENT = "document"
+    TEXT = "text" 

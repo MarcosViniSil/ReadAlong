@@ -11,11 +11,10 @@ class KindleParser(BookParser):
         self.parser = parser
 
     def extract_text(self, file_path: Path) -> str:
+        self.__check_file_existence(file_path)
         epub_path = self.__convert_kindle_to_epub(file_path)
 
-        self.parser.extract_text(epub_path)
-
-        return ""
+        return self.parser.extract_text(epub_path)
 
     def __convert_kindle_to_epub(self,kindle_path:Path) -> str:
         
@@ -28,3 +27,9 @@ class KindleParser(BookParser):
         )
 
         return converted_kindle_path
+
+    def __check_file_existence(self, file_path: str) -> None:
+        file_path = Path(file_path)
+
+        if not file_path.is_file():
+            raise ValueError("The file does not exists")

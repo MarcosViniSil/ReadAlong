@@ -1,7 +1,0 @@
-this is a file of test
-with 
-
-multiple lines
-
-
-and words

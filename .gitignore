@@ -3,9 +3,11 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+temp/
+audio/
+
 # C extensions
 *.so
-
 # Distribution / packaging
 .Python
 build/
