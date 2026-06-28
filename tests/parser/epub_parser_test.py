@@ -1,10 +1,13 @@
 """Test suite for EpubParser covering all node types and edge cases."""
 
+
+
 import pytest
 
 from models.Node import Node
-from models.NodeType import NodeType
-from parsers.impl.epub_parser import EpubParser
+from models.enum.NodeType import NodeType
+from parsers.impl.epub.epub_parser import EpubParser
+from parsers.impl.html_parser import HTMLParser
 
 
 # ---------------------------------------------------------------------------
@@ -13,7 +16,8 @@ from parsers.impl.epub_parser import EpubParser
 
 @pytest.fixture
 def parser():
-    return EpubParser()
+    html_parser = HTMLParser()
+    return EpubParser(html_parser)
 
 
 # ---------------------------------------------------------------------------
