@@ -17,7 +17,15 @@ jobs:
       with:
         python-version: '3.12.3'
         cache: 'pip'
-
+    
+    - name: Install Calibre
+      run: |
+          sudo apt update
+          sudo apt install -y calibre
+    
+    - name: Verify ebook-convert
+      run: ebook-convert --version
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
