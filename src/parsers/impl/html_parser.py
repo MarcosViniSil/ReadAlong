@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from log.loggerService import LoggerService
 from models.Node import Node
 from models.enum.HtmlTag import HtmlTag
 from mathml_to_latex.converter import MathMLToLaTeX
@@ -30,6 +30,7 @@ class HTMLParser:
             HtmlTag.CODE: self.parse_code_tag,
         }
         self.math_converter = MathMLToLaTeX()
+        LoggerService.log_info("HTMLParser initialized with %d tag handlers", len(self.handlers))
 
     def parse_children(self, parent, image_map):
         for child in parent.children:
