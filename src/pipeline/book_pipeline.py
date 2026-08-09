@@ -1,5 +1,6 @@
 from pathlib import Path
 from exceptions.PipelineException import BookProcessingError
+from export.bookExporter import DEFAULT_OUTPUT_DIR, write_book_json
 from file_inspection.provider.fileTypeDetectionProvider import FileTypeDetection
 from log.loggerService import LoggerService
 from models.Book import Book
@@ -15,13 +16,14 @@ logger = logging.getLogger(__name__)
 
 class BookPipeline():
 
-    def __init__(self,splitter:Splitter,ttsService:TTSProvider,parser_factory: parserFactory.ParserFactory, filetypeDetection: FileTypeDetection, paginator: Paginator):
+    def __init__(self,splitter:Splitter,ttsService:TTSProvider,parser_factory: parserFactory.ParserFactory, filetypeDetection: FileTypeDetection, paginator: Paginator, output_dir: Path = DEFAULT_OUTPUT_DIR):
         self.splitter = splitter
         self.ttsService = ttsService
         self.parser_factory = parser_factory
         self.filetypeDetection = filetypeDetection
         self.paginator = paginator
-        
+        self.output_dir = output_dir
+
     def pipeline(self,file_path: Path) -> None:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
         
@@ -45,6 +47,7 @@ class BookPipeline():
         
         try:
             self.__generate_audio(book)
+            json_path = write_book_json(book, self.output_dir)
         except Exception as e:
             LoggerService.log_exception(
                 "Error generating audio for %s",
@@ -55,7 +58,8 @@ class BookPipeline():
         return PipelineResult(
             file_path=file_path,
             chunks=len(book.pages),
-            audio_generated=bool(book.pages and book.pages[0].audioFile)
+            audio_generated=bool(book.pages and book.pages[0].audioFile),
+            json_path=str(json_path)
         )
 
     def __generate_audio(self, book: Book) -> None:

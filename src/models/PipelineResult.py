@@ -5,3 +5,4 @@ class PipelineResult:
     file_path: str
     chunks: int
     audio_generated: bool
+    json_path: str = ""
