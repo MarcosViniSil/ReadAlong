@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 from log.loggerService import LoggerService
+from models.Node import Node
 from parsers.bookParserProvider import BookParser
 
 output_dir = Path("kindle_converted")
@@ -12,7 +13,7 @@ class KindleParser(BookParser):
         self.parser = parser
         LoggerService.log_info("KindleParser initialized with underlying parser: %s", type(parser).__name__)
 
-    def extract_text(self, file_path: Path) -> str:
+    def extract_text(self, file_path: Path) -> Node:
         LoggerService.log_info("Starting Kindle text extraction for file: %s", file_path)
         self.__check_file_existence(file_path)
         epub_path = self.__convert_kindle_to_epub(file_path)

@@ -2,6 +2,7 @@ from fastapi import Depends
 
 from parsers.factory.parserFactory import ParserFactory
 from pipeline.book_pipeline import BookPipeline
+from processing.paginator import Paginator
 from processing.sentence_splitter import Splitter
 from provider.fileInspectionProvider import getfileTypeDetection
 from provider.parseFactoryProvider import getParseFactory
@@ -14,6 +15,9 @@ def getSplitter() -> Splitter:
 def getTTSProvider() -> TTSProvider:
     return KokoroProviderImpl()
 
+def getPaginator() -> Paginator:
+    return Paginator()
+
 def get_parser_factory() -> ParserFactory:
     return ParserFactory()
 
@@ -22,6 +26,7 @@ def getBookPipelineService() -> BookPipeline:
         getSplitter(),
         getTTSProvider(),
         getParseFactory(),
-        getfileTypeDetection()
+        getfileTypeDetection(),
+        getPaginator()
     )
 

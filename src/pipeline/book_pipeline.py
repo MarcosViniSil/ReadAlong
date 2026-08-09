@@ -2,8 +2,11 @@ from pathlib import Path
 from exceptions.PipelineException import BookProcessingError
 from file_inspection.provider.fileTypeDetectionProvider import FileTypeDetection
 from log.loggerService import LoggerService
+from models.Book import Book
 from models.PipelineResult import PipelineResult
+from models.SentenceType import SentenceType
 from parsers.factory import parserFactory
+from processing.paginator import Paginator
 from processing.sentence_splitter import Splitter
 from tts.TTSProvider import TTSProvider
 import logging
@@ -11,12 +14,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class BookPipeline():
-    
-    def __init__(self,splitter:Splitter,ttsService:TTSProvider,parser_factory: parserFactory.ParserFactory, filetypeDetection: FileTypeDetection):
+
+    def __init__(self,splitter:Splitter,ttsService:TTSProvider,parser_factory: parserFactory.ParserFactory, filetypeDetection: FileTypeDetection, paginator: Paginator):
         self.splitter = splitter
         self.ttsService = ttsService
         self.parser_factory = parser_factory
         self.filetypeDetection = filetypeDetection
+        self.paginator = paginator
         
     def pipeline(self,file_path: Path) -> None:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
@@ -25,8 +29,13 @@ class BookPipeline():
             extension = self.filetypeDetection.detect_extension(file_path)
             parser = self.parser_factory.create(extension)
             content = parser.extract_text(file_path)
-            print(content)
-            print("\n".join(content.linearize()))
+            book = self.paginator.paginate(content, file_path.stem)
+            print("book: ",book)
+            total_sentences = sum(len(page.Sentence) for page in book.pages)
+            LoggerService.log_info(
+                "BookPipeline - generated book '%s' with %d pages and %d sentences",
+                book.bookName, len(book.pages), total_sentences
+            )
         except Exception as e:
             LoggerService.log_exception(
                 "Error extracting text from %s",
@@ -34,22 +43,45 @@ class BookPipeline():
             )
             raise e
         
-        #LoggerService.log_info(f"BookPipeline - content from file path {file_path} received and with length of {len(content)}")
-        
-        # try:
-        #     phrases = self.splitter.split_into_chunks(content)
-        #     self.ttsService.generate("test",phrases)
-        # except Exception as e:
-        #     LoggerService.log_exception(
-        #         "Error splitting content into chunks and generating audio %s",
-        #         file_path
-        #     )
-        #     raise BookProcessingError("An error occurred when trying to generate audio")
-        
-        #LoggerService.log_info(f"BookPipeline - audio generated successfully with {len(phrases)} phrases")
-  
+        try:
+            self.__generate_audio(book)
+        except Exception as e:
+            LoggerService.log_exception(
+                "Error generating audio for %s",
+                file_path
+            )
+            raise BookProcessingError("An error occurred when trying to generate audio")
+
         return PipelineResult(
             file_path=file_path,
-            chunks=0,
-            audio_generated=True
+            chunks=len(book.pages),
+            audio_generated=bool(book.pages and book.pages[0].audioFile)
         )
+
+    def __generate_audio(self, book: Book) -> None:
+        spoken = [
+            sentence
+            for page in book.pages
+            for sentence in page.Sentence
+            if sentence.sentenceType == SentenceType.TEXT and sentence.text
+        ]
+
+        if not spoken:
+            LoggerService.log_warning("BookPipeline - no spoken sentences to synthesize")
+            return
+
+        transcription = self.ttsService.generate(
+            book.bookName,
+            [sentence.text for sentence in spoken]
+        )
+
+        for sentence, duration in zip(spoken, transcription.durations):
+            sentence.duration = duration
+
+        cursor = 0.0
+        for page in book.pages:
+            for sentence in page.Sentence:
+                sentence.start = cursor
+                cursor += sentence.duration
+                sentence.end = cursor
+            page.audioFile = transcription.audio_path
