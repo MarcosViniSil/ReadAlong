@@ -1,8 +1,16 @@
 from dataclasses import dataclass
-from models.Page import Page
+import datetime
+from models.enum import BookStatus
+from models.enum.languages import Languages
 
 @dataclass
 class Book:
-    bookName: str
-    bookCode: str
-    pages: list[Page]
+    id: str = ""
+    title: str = ""
+    author: str = ""
+    language: Languages = str(Languages.ENGLISH)
+    status: BookStatus
+    total_pages: int 
+    completed_pages: int
+    created_at: datetime
+    updated_at: datetime
