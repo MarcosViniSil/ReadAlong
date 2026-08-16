@@ -8,6 +8,7 @@ class Book:
     id: str = ""
     title: str = ""
     author: str = ""
+    book_url: str
     language: Languages = str(Languages.ENGLISH)
     status: BookStatus
     total_pages: int 

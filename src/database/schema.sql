@@ -77,6 +77,7 @@ CREATE TABLE books (
                     )),
     status          book_status NOT NULL,
     total_pages     INTEGER NOT NULL DEFAULT 0,
+    book_url        TEXT NOT NULL,
     completed_pages INTEGER NOT NULL DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

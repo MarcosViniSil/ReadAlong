@@ -22,6 +22,7 @@ erDiagram
     BOOKS {
         uuid id PK
         text title
+        book_url text
         text author
         varchar language
         book_status status
