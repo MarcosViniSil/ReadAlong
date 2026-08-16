@@ -1,0 +1,56 @@
+.index {
+  margin: 12px 0 4px;
+}
+
+.index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #1a1a1a;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px 4px;
+  min-height: 44px;
+}
+
+.item:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.num {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.current {
+  font-weight: 700;
+}
+
+.current .num {
+  color: #1a1a1a;
+}
+
+@media (max-width: 639px) {
+  .index {
+    display: none;
+  }
+
+  .index.open {
+    display: block;
+  }
+}

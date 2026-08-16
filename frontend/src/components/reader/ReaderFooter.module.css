@@ -1,0 +1,23 @@
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 1px solid var(--border);
+  padding: 8px 20px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.inner {
+  max-width: var(--max-text);
+  margin: 0 auto;
+}
+
+@media (max-width: 639px) {
+  .inner {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

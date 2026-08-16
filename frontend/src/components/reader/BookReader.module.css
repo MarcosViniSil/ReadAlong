@@ -1,0 +1,16 @@
+.reader {
+  max-width: var(--max-text);
+  margin: 0 auto;
+  padding: 0 20px 110px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 639px) {
+  .reader {
+    padding: 0 16px 120px;
+  }
+}
