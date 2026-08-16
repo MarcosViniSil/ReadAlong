@@ -1,0 +1,22 @@
+.card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 16px 18px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+}

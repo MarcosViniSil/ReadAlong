@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Waveform de Áudio</title>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111827;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    .player {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 25px;
+      background: #1f2937;
+      border-radius: 14px;
+    }
+
+    button {
+      width: 50px;
+      height: 50px;
+      border: 0;
+      border-radius: 50%;
+      background: #6366f1;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #818cf8;
+    }
+
+    .waveform {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      height: 20px;
+    }
+
+    .bar {
+      width: 2px;
+      min-height: 3px;
+      border-radius: 999px;
+      background: #818cf8;
+      opacity: 0.25;
+
+      /* A altura inicial */
+      height: 3px;
+
+      /* Cada barra terá sua própria duração e atraso */
+      animation: none;
+    }
+
+    .waveform.playing .bar {
+      opacity: 0.85;
+      animation-name: waveBar;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+    }
+
+    @keyframes waveBar {
+      from {
+        height: 3px;
+      }
+
+      to {
+        height: var(--bar-height);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="player">
+
+    <button id="playButton">▶</button>
+
+    <div class="waveform" id="waveform"></div>
+
+    <audio id="audio">
+      <!-- Substitua pelo seu arquivo de áudio -->
+      <source src="./output.wav" type="audio/mpeg">
+    </audio>
+
+  </div>
+
+  <script>
+    const audio = document.getElementById("audio");
+    const button = document.getElementById("playButton");
+    const waveform = document.getElementById("waveform");
+
+    // Alturas originais do componente React
+    const heights = [
+      4, 8, 13, 10, 6,
+      14, 9, 12, 7, 11,
+      5, 13, 8, 10, 6
+    ];
+
+    // Criar as barras
+    heights.forEach((height, index) => {
+
+      const bar = document.createElement("div");
+
+      bar.className = "bar";
+
+      // Corrige o detalhe do código React:
+      // cada barra recebe sua própria altura
+      bar.style.setProperty("--bar-height", `${height}px`);
+
+      // Mesmo conceito do código original:
+      bar.style.animationDuration = `${600 + index * 80}ms`;
+      bar.style.animationDelay = `${index * 55}ms`;
+
+      waveform.appendChild(bar);
+    });
+
+
+    // Play / Pause
+    button.addEventListener("click", async () => {
+
+      if (audio.paused) {
+        await audio.play();
+
+        waveform.classList.add("playing");
+        button.textContent = "❚❚";
+
+      } else {
+        audio.pause();
+
+        waveform.classList.remove("playing");
+        button.textContent = "▶";
+      }
+
+    });
+
+
+    // Quando o áudio terminar
+    audio.addEventListener("ended", () => {
+
+      waveform.classList.remove("playing");
+      button.textContent = "▶";
+
+    });
+
+  </script>
+
+</body>
+</html>

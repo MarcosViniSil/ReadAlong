@@ -14,7 +14,7 @@ class EpubParser(BookParser):
         self.htmlParser = htmlParser
         LoggerService.log_info("EpubParser initialized")
 
-    def extract_text(self, file_path):
+    def extract_text(self, file_path) -> Node:
         LoggerService.log_info("Starting EPUB text extraction for file: %s", file_path)
         self.__check_file_existence(file_path)
 

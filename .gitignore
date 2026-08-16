@@ -226,3 +226,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 test
+# Frontend (Vite)
+frontend/node_modules/
+frontend/dist/
