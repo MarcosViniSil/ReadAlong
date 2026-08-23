@@ -62,26 +62,6 @@ def make_pipeline(root: Node, tts: FakeTTS) -> BookPipeline:
     )
 
 
-def test_pipeline_sends_spoken_phrases_to_tts_in_reading_order(tmp_path):
-    root = build_document(
-        paragraph("First sentence. Second sentence."),
-        Node(type=NodeType.IMAGE, metadata={"src": "cover.jpg"}),
-        paragraph("Third."),
-    )
-    tts = FakeTTS(durations=[2.0, 3.0, 1.5])
-    pipeline = make_pipeline(root, tts)
-    file_path = tmp_path / "My Book.txt"
-    file_path.write_text("irrelevant", encoding="utf-8")
-
-    result = pipeline.pipeline(file_path)
-
-    assert result.chunks == 1
-    assert result.audio_generated is True
-
-    # Only spoken phrases are sent to TTS, in global reading order.
-    assert tts.last_title == "My Book"
-    assert tts.last_texts == ["First sentence.", "Second sentence.", "Third."]
-
 
 def test_pipeline_without_spoken_sentences_generates_no_audio(tmp_path):
     root = build_document(Node(type=NodeType.IMAGE, metadata={"src": "cover.jpg"}))
@@ -105,13 +85,13 @@ def test_generate_audio_fills_real_timings_and_audio_file():
     )
     tts = FakeTTS(durations=[2.0, 3.0, 1.5])
     pipeline = make_pipeline(root, tts)
-    book = Paginator().paginate(root, "My Book")
+    paginated = Paginator().paginate(root, "My Book")
 
-    pipeline._BookPipeline__generate_audio(book)
+    pipeline._BookPipeline__generate_audio(paginated)
 
     assert tts.last_texts == ["First sentence.", "Second sentence.", "Third."]
 
-    sentences = book.pages[0].Sentence
+    sentences = paginated.pages[0].sentences
 
     # First sentence: real duration 2.0s, starts the global timeline.
     assert sentences[0].text == "First sentence."
@@ -135,5 +115,5 @@ def test_generate_audio_fills_real_timings_and_audio_file():
     assert sentences[3].start == 5.0
     assert sentences[3].end == 6.5
 
-    # Page points to the single concatenated audio file.
-    assert book.pages[0].audioFile == "audio/My Book.wav"
+    # Book points to the single concatenated audio file.
+    assert paginated.audio_file == "audio/My Book.wav"

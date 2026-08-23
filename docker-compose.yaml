@@ -1,0 +1,63 @@
+services:
+  dcs-postgres:
+    image: postgres:15.3-alpine
+    container_name: dcs-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_DB: readalong
+    ports:
+      - 5432:5432
+    volumes:
+      - postgress_data:/var/lib/postgresql/data
+  dcs-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dcs-pgadmin
+    restart: always
+    depends_on:
+      - dcs-postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - 8080:80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis_queue
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass redispassword
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispassword", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis_insight_ui
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - insight_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+
+networks:
+  default:
+    name: local-network
+    external: true
+volumes:
+  redis_data:
+  insight_data:
+  pgadmin_data:
+  postgress_data:

@@ -6,7 +6,9 @@ from models.Node import Node
 from models.Page import Page
 from models.Sentence import Sentence
 from models.SentenceType import SentenceType
+from models.enum.BookStatus import BookStatus
 from models.enum.NodeType import NodeType
+from models.enum.languages import Languages
 
 
 @dataclass
@@ -15,15 +17,41 @@ class ReadingUnit:
     sentence_type: SentenceType
     metadata: dict = field(default_factory=dict)
     duration: float = 0.0
+    block_type: str = ""
+    block_code: str = ""
 
     @property
     def is_spoken(self) -> bool:
         return self.sentence_type == SentenceType.TEXT and bool(self.text)
 
 
+@dataclass
+class PageData:
+    """Pipeline view of a page: the persisted record plus its sentences.
+
+    ``page`` is the DB-shaped Page (sequence/text/sentence_count/status);
+    ``sentences`` carries the semantic detail the DB schema does not model
+    (types, block grouping, per-sentence timings).
+    """
+    page: Page
+    sentences: list[Sentence]
+
+
+@dataclass
+class PaginatedBook:
+    """Result of pagination: the DB-shaped Book record plus its pages.
+
+    ``pages`` are PageData (record + sentences); ``audio_file`` is filled by
+    the pipeline once TTS finishes (single concatenated audio per book).
+    """
+    book: Book
+    pages: list[PageData]
+    audio_file: str = ""
+
+
 class Paginator:
-    WORDS_PER_SECOND = 2.5
-    TARGET_PAGE_DURATION = 30.0
+    WORDS_PER_SECOND = 3
+    TARGET_PAGE_DURATION = 8 * 60 
 
     _BLOCK_TYPES = {
         NodeType.PARAGRAPH,
@@ -34,77 +62,95 @@ class Paginator:
 
     _SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 
-    def paginate(self, root: Node, book_name: str) -> Book:
+    def paginate(self, root: Node, book_name: str) -> PaginatedBook:
         units: list[ReadingUnit] = []
         self._collect_units(root, units)
         pages = self._build_pages(units)
         return self._to_book(book_name, pages)
 
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------  #
     # Step A: collect reading units from the node tree (pre-order, keeps  #
     # reading order). Spoken units are sentences; IMAGE/FORMULA/TABLE are #
-    # non-spoken markers kept for transcription.                          #
-    # ------------------------------------------------------------------ #
-    def _collect_units(self, node: Node, units: list[ReadingUnit]) -> None:
+    # non-spoken markers kept for transcription. Each source block node   #
+    # gets its own block_code so the semantic tree survives pagination.   #
+    # ------------------------------------------------------------------  #
+    def _collect_units(self, node: Node, units: list[ReadingUnit], counter: list[int] | None = None) -> None:
+        if counter is None:
+            counter = [0]
         node_type = node.type
 
         if node_type in self._BLOCK_TYPES:
             text = self._clean(self._node_text(node))
             if text:
+                block = self._next_block(counter, node_type.value)
                 for sentence in self._split_sentences(text):
-                    units.append(self._spoken_unit(sentence))
+                    units.append(self._spoken_unit(sentence, block_type=block[0], block_code=block[1]))
             return
 
         if node_type == NodeType.HEADING:
             text = self._clean(self._node_text(node))
             if text:
+                block_type, block_code = self._next_block(counter, node_type.value)
                 units.append(ReadingUnit(
                     text=text,
                     sentence_type=SentenceType.TEXT,
                     metadata={"level": node.metadata.get("level", 1)},
                     duration=self._estimate_duration(text),
+                    block_type=block_type,
+                    block_code=block_code,
                 ))
             return
 
         if node_type == NodeType.CODE:
             text = self._clean(self._node_text(node))
             if text:
-                units.append(self._spoken_unit(text, code=True))
+                block_type, block_code = self._next_block(counter, node_type.value)
+                units.append(self._spoken_unit(text, code=True, block_type=block_type, block_code=block_code))
             return
 
         if node_type == NodeType.TABLE:
+            block_type, block_code = self._next_block(counter, node_type.value)
             units.append(ReadingUnit(
                 text=self._flatten_table(node),
                 sentence_type=SentenceType.TABLE,
+                block_type=block_type,
+                block_code=block_code,
             ))
             return
 
         if node_type == NodeType.IMAGE:
+            block_type, block_code = self._next_block(counter, node_type.value)
             units.append(ReadingUnit(
                 text="",
                 sentence_type=SentenceType.IMAGE,
                 metadata={"src": node.metadata.get("src")},
+                block_type=block_type,
+                block_code=block_code,
             ))
             return
 
         if node_type == NodeType.FORMULA:
+            block_type, block_code = self._next_block(counter, node_type.value)
             units.append(ReadingUnit(
                 text="",
                 sentence_type=SentenceType.LATEX,
                 metadata={"raw": node.metadata.get("raw")},
+                block_type=block_type,
+                block_code=block_code,
             ))
             return
 
         if node_type == NodeType.TEXT:
             text = self._clean(node.text)
             if text:
+                block_type, block_code = self._next_block(counter, NodeType.PARAGRAPH.value)
                 for sentence in self._split_sentences(text):
-                    units.append(self._spoken_unit(sentence))
+                    units.append(self._spoken_unit(sentence, block_type=block_type, block_code=block_code))
             return
 
         # Containers (DOCUMENT/CHAPTER/SECTION/LIST/ROW/...): recurse.
         for child in node.children:
-            self._collect_units(child, units)
+            self._collect_units(child, units, counter)
 
     # ------------------------------------------------------------------ #
     # Step B: group units into pages by estimated duration.               #
@@ -144,20 +190,26 @@ class Paginator:
         return pages
 
     # ------------------------------------------------------------------ #
-    # Step C: materialize Book -> Page -> Sentence with global timeline.  #
+    # Step C: materialize DB-shaped Book/Page plus sentence trees.        #
     # ------------------------------------------------------------------ #
-    def _to_book(self, book_name: str, pages: list[list[ReadingUnit]]) -> Book:
+    def _to_book(self, book_name: str, pages: list[list[ReadingUnit]]) -> PaginatedBook:
         book = Book(
-            bookName=book_name,
-            bookCode=self._book_code(book_name),
-            pages=[],
+            title=book_name,
+            author="",
+            book_url="",
+            language=Languages.ENGLISH,
+            status=BookStatus.PROCESSING,
+            total_pages=len(pages),
+            completed_pages=0,
         )
+        page_datas: list[PageData] = []
         cursor = 0.0
         segment_counter = 0
         previous_sentence: Sentence | None = None
 
         for page_index, page_units in enumerate(pages):
-            page_code = f"P{page_index + 1:03d}"
+            sequence = page_index + 1
+            page_code = f"P{sequence:03d}"
             sentences: list[Sentence] = []
 
             for unit in page_units:
@@ -170,9 +222,12 @@ class Paginator:
                     text=unit.text,
                     segmentCode=f"S{segment_counter:04d}",
                     duration=unit.duration,
-                    start=start,
+                    start=start,    
                     end=end,
                     nextSegmentCode="",
+                    block_type=unit.block_type,
+                    block_code=unit.block_code,
+                    metadata=unit.metadata,
                 )
                 # Chain segments across the whole book (single final audio),
                 # so the last sentence of a page links to the first of the next.
@@ -182,27 +237,35 @@ class Paginator:
                 previous_sentence = sentence
                 cursor = end
 
-            book.pages.append(Page(
-                pageCode=page_code,
-                audioFile="",
-                Sentence=sentences,
-                nextPageCode="",
-            ))
+            page = Page(
+                id="",
+                processing_run_id="",
+                sequence=sequence,
+                text=" ".join(s.text for s in sentences if s.text).strip(),
+                sentence_count=len(sentences),
+                status=BookStatus.COMPLETED,
+                created_at=None,
+                updated_at=None,
+            )
+            page_datas.append(PageData(page=page, sentences=sentences))
 
-        for i in range(len(book.pages) - 1):
-            book.pages[i].nextPageCode = book.pages[i + 1].pageCode
-
-        return book
+        return PaginatedBook(book=book, pages=page_datas)
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #
     # ------------------------------------------------------------------ #
-    def _spoken_unit(self, text: str, code: bool = False) -> ReadingUnit:
+    def _next_block(self, counter: list[int], block_type: str) -> tuple[str, str]:
+        counter[0] += 1
+        return block_type, f"B{counter[0]:04d}"
+
+    def _spoken_unit(self, text: str, code: bool = False, block_type: str = "", block_code: str = "") -> ReadingUnit:
         return ReadingUnit(
             text=text,
             sentence_type=SentenceType.TEXT,
             metadata={"code": True} if code else {},
             duration=self._estimate_duration(text),
+            block_type=block_type,
+            block_code=block_code,
         )
 
     def _node_text(self, node: Node) -> str:
@@ -228,8 +291,3 @@ class Paginator:
             if cells:
                 rows.append(" | ".join(cells))
         return " ; ".join(rows)
-
-    @staticmethod
-    def _book_code(book_name: str) -> str:
-        code = re.sub(r"[^A-Za-z0-9]+", "-", book_name).strip("-").lower()
-        return code or "book"
