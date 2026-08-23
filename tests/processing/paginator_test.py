@@ -1,5 +1,6 @@
 from models.Node import Node
 from models.SentenceType import SentenceType
+from models.enum.BookStatus import BookStatus
 from models.enum.NodeType import NodeType
 from processing.paginator import Paginator
 
@@ -40,37 +41,43 @@ def table(rows: list[list[str]]) -> Node:
     )
 
 
-def test_paginate_builds_book_with_single_page():
+def test_paginate_builds_db_book_and_pages():
     doc = build_document(paragraph("Hello world."))
-    book = paginator.paginate(doc, "My Book")
+    paginated = paginator.paginate(doc, "My Book")
 
-    assert book.bookName == "My Book"
-    assert book.bookCode == "my-book"
-    assert len(book.pages) == 1
+    assert paginated.book.title == "My Book"
+    assert paginated.book.total_pages == 1
+    assert paginated.book.status == BookStatus.PROCESSING
 
-    page = book.pages[0]
-    assert page.pageCode == "P001"
-    assert page.nextPageCode == ""
-    assert len(page.Sentence) == 1
-    assert page.Sentence[0].text == "Hello world."
-    assert page.Sentence[0].sentenceType == SentenceType.TEXT
+    page_data = paginated.pages[0]
+    assert page_data.page.sequence == 1
+    assert page_data.page.text == "Hello world."
+    assert page_data.page.sentence_count == 1
+    assert page_data.page.status == BookStatus.COMPLETED
+
+    assert len(page_data.sentences) == 1
+    assert page_data.sentences[0].text == "Hello world."
+    assert page_data.sentences[0].sentenceType == SentenceType.TEXT
+    assert page_data.sentences[0].pageCode == "P001"
 
 
 def test_paragraph_is_split_into_sentences():
     doc = build_document(paragraph("First sentence. Second sentence! Third?"))
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    texts = [s.text for s in book.pages[0].Sentence]
+    texts = [s.text for s in paginated.pages[0].sentences]
     assert texts == ["First sentence.", "Second sentence!", "Third?"]
+    assert paginated.pages[0].page.sentence_count == 3
 
 
 def test_heading_becomes_spoken_sentence_with_level():
     doc = build_document(heading(1, "Introduction"))
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    sentence = book.pages[0].Sentence[0]
+    sentence = paginated.pages[0].sentences[0]
     assert sentence.text == "Introduction"
     assert sentence.sentenceType == SentenceType.TEXT
+    assert sentence.metadata["level"] == 1
 
 
 def test_heading_level_1_forces_page_break():
@@ -79,13 +86,14 @@ def test_heading_level_1_forces_page_break():
         heading(1, "Chapter One"),
         paragraph("Chapter body."),
     )
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    assert len(book.pages) == 2
-    assert book.pages[0].Sentence[0].text == "Some intro text."
-    assert book.pages[1].Sentence[0].text == "Chapter One"
-    assert book.pages[1].Sentence[1].text == "Chapter body."
-    assert book.pages[0].nextPageCode == "P002"
+    assert len(paginated.pages) == 2
+    assert paginated.pages[0].sentences[0].text == "Some intro text."
+    assert paginated.pages[1].sentences[0].text == "Chapter One"
+    assert paginated.pages[1].sentences[1].text == "Chapter body."
+    assert paginated.pages[0].page.sequence == 1
+    assert paginated.pages[1].page.sequence == 2
 
 
 def test_image_formula_table_become_non_spoken_markers():
@@ -96,10 +104,10 @@ def test_image_formula_table_become_non_spoken_markers():
         table([["h1", "h2"], ["a", "b"]]),
         paragraph("After the figure."),
     )
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    types = [s.sentenceType for s in book.pages[0].Sentence]
-    texts = [s.text for s in book.pages[0].Sentence]
+    types = [s.sentenceType for s in paginated.pages[0].sentences]
+    texts = [s.text for s in paginated.pages[0].sentences]
 
     assert types == [
         SentenceType.TEXT,
@@ -117,22 +125,22 @@ def test_pages_are_grouped_by_estimated_duration():
     # Each sentence has 7 words -> 7 / 2.5 = 2.8s.
     # 10 sentences = 28s <= 30s target; the 11th would push it to 30.8s.
     doc = build_document(*[paragraph(f"Words number {i} in this text block.") for i in range(11)])
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    assert len(book.pages) == 2
-    assert len(book.pages[0].Sentence) == 10
-    assert len(book.pages[1].Sentence) == 1
+    assert len(paginated.pages) == 2
+    assert len(paginated.pages[0].sentences) == 10
+    assert len(paginated.pages[1].sentences) == 1
 
 
 def test_overlong_sentence_goes_alone_in_page():
     # 80 words -> 80 / 2.5 = 32s > 30s target, so it overflows a page alone.
     long_text = "word " * 79 + "end."
     doc = build_document(paragraph(long_text), paragraph("Short."))
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    assert len(book.pages) == 2
-    assert len(book.pages[0].Sentence) == 1
-    assert len(book.pages[1].Sentence) == 1
+    assert len(paginated.pages) == 2
+    assert len(paginated.pages[0].sentences) == 1
+    assert len(paginated.pages[1].sentences) == 1
 
 
 def test_global_timeline_accumulates_across_pages():
@@ -140,9 +148,9 @@ def test_global_timeline_accumulates_across_pages():
         paragraph("One two three four five."),  # 5 words -> 2s
         paragraph("Six seven eight nine ten."),  # 5 words -> 2s
     )
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    s1, s2 = book.pages[0].Sentence
+    s1, s2 = paginated.pages[0].sentences
     assert s1.start == 0.0
     assert s1.end == 2.0
     assert s2.start == 2.0
@@ -150,23 +158,42 @@ def test_global_timeline_accumulates_across_pages():
     assert s1.nextSegmentCode == s2.segmentCode
 
 
-def test_segment_and_page_codes_are_chained():
+def test_segment_codes_are_chained_across_pages():
     doc = build_document(paragraph("Alpha."), heading(1, "Beta"), paragraph("Gamma."))
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    p1, p2 = book.pages
-    assert p1.nextPageCode == p2.pageCode
-    assert p2.nextPageCode == ""
+    p1, p2 = paginated.pages
+    assert p1.page.sequence == 1
+    assert p2.page.sequence == 2
 
-    for i in range(len(p1.Sentence) - 1):
-        assert p1.Sentence[i].nextSegmentCode == p1.Sentence[i + 1].segmentCode
-    assert p1.Sentence[-1].nextSegmentCode == p2.Sentence[0].segmentCode
+    for i in range(len(p1.sentences) - 1):
+        assert p1.sentences[i].nextSegmentCode == p1.sentences[i + 1].segmentCode
+    assert p1.sentences[-1].nextSegmentCode == p2.sentences[0].segmentCode
+    assert p2.sentences[-1].nextSegmentCode == ""
 
 
 def test_txt_style_flat_text_nodes_are_paginated():
     doc = build_document(text_node("Line one."), text_node("Line two."))
-    book = paginator.paginate(doc, "Book")
+    paginated = paginator.paginate(doc, "Book")
 
-    assert len(book.pages[0].Sentence) == 2
-    assert book.pages[0].Sentence[0].text == "Line one."
-    assert book.pages[0].Sentence[1].text == "Line two."
+    assert len(paginated.pages[0].sentences) == 2
+    assert paginated.pages[0].sentences[0].text == "Line one."
+    assert paginated.pages[0].sentences[1].text == "Line two."
+
+
+def test_sentences_carry_block_type_and_code():
+    doc = build_document(
+        paragraph("First paragraph."),
+        paragraph("Second paragraph."),
+        heading(2, "Subtitle"),
+        image("pic.png"),
+    )
+    paginated = paginator.paginate(doc, "Book")
+    sentences = paginated.pages[0].sentences
+
+    assert sentences[0].block_type == "Paragraph"
+    assert sentences[1].block_type == "Paragraph"
+    assert sentences[0].block_code != sentences[1].block_code
+    assert sentences[2].block_type == "Heading"
+    assert sentences[2].metadata["level"] == 2
+    assert sentences[3].block_type == "Image"

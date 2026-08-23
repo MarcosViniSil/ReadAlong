@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import datetime
-from models.Sentence import Sentence
 from models.enum import BookStatus
 
 @dataclass

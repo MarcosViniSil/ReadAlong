@@ -1,13 +1,14 @@
 from pathlib import Path
 from exceptions.PipelineException import BookProcessingError
 from export.bookExporter import DEFAULT_OUTPUT_DIR, write_book_json
+from export.pageTree import write_page_jsons
 from file_inspection.provider.fileTypeDetectionProvider import FileTypeDetection
 from log.loggerService import LoggerService
-from models.Book import Book
 from models.PipelineResult import PipelineResult
 from models.SentenceType import SentenceType
+from models.enum.BookStatus import BookStatus
 from parsers.factory import parserFactory
-from processing.paginator import Paginator
+from processing.paginator import PaginatedBook, Paginator
 from processing.sentence_splitter import Splitter
 from tts.TTSProvider import TTSProvider
 import logging
@@ -26,17 +27,16 @@ class BookPipeline():
 
     def pipeline(self,file_path: Path) -> None:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
-        
+
         try:
             extension = self.filetypeDetection.detect_extension(file_path)
             parser = self.parser_factory.create(extension)
             content = parser.extract_text(file_path)
-            book = self.paginator.paginate(content, file_path.stem)
-            print("book: ",book)
-            total_sentences = sum(len(page.Sentence) for page in book.pages)
+            paginated = self.paginator.paginate(content, file_path.stem)
+            total_sentences = sum(len(page_data.sentences) for page_data in paginated.pages)
             LoggerService.log_info(
                 "BookPipeline - generated book '%s' with %d pages and %d sentences",
-                book.bookName, len(book.pages), total_sentences
+                paginated.book.title, len(paginated.pages), total_sentences
             )
         except Exception as e:
             LoggerService.log_exception(
@@ -44,10 +44,13 @@ class BookPipeline():
                 file_path
             )
             raise e
-        
+
         try:
-            self.__generate_audio(book)
-            json_path = write_book_json(book, self.output_dir)
+            #self.__generate_audio(paginated)
+            #json_path = write_book_json(paginated, self.output_dir)
+            write_page_jsons(paginated, self.output_dir)
+            paginated.book.status = BookStatus.COMPLETED
+            paginated.book.completed_pages = paginated.book.total_pages
         except Exception as e:
             LoggerService.log_exception(
                 "Error generating audio for %s",
@@ -57,16 +60,16 @@ class BookPipeline():
 
         return PipelineResult(
             file_path=file_path,
-            chunks=len(book.pages),
-            audio_generated=bool(book.pages and book.pages[0].audioFile),
-            json_path=str(json_path)
+            chunks=len(paginated.pages),
+            audio_generated=bool(paginated.pages and paginated.audio_file),
+            json_path=str("")
         )
 
-    def __generate_audio(self, book: Book) -> None:
+    def __generate_audio(self, paginated: PaginatedBook) -> None:
         spoken = [
             sentence
-            for page in book.pages
-            for sentence in page.Sentence
+            for page_data in paginated.pages
+            for sentence in page_data.sentences
             if sentence.sentenceType == SentenceType.TEXT and sentence.text
         ]
 
@@ -75,7 +78,7 @@ class BookPipeline():
             return
 
         transcription = self.ttsService.generate(
-            book.bookName,
+            paginated.book.title,
             [sentence.text for sentence in spoken]
         )
 
@@ -83,9 +86,10 @@ class BookPipeline():
             sentence.duration = duration
 
         cursor = 0.0
-        for page in book.pages:
-            for sentence in page.Sentence:
+        for page_data in paginated.pages:
+            for sentence in page_data.sentences:
                 sentence.start = cursor
                 cursor += sentence.duration
                 sentence.end = cursor
-            page.audioFile = transcription.audio_path
+
+        paginated.audio_file = transcription.audio_path
