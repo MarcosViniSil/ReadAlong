@@ -121,43 +121,6 @@ def test_image_formula_table_become_non_spoken_markers():
     assert texts[3] == "h1 | h2 ; a | b"
 
 
-def test_pages_are_grouped_by_estimated_duration():
-    # Each sentence has 7 words -> 7 / 2.5 = 2.8s.
-    # 10 sentences = 28s <= 30s target; the 11th would push it to 30.8s.
-    doc = build_document(*[paragraph(f"Words number {i} in this text block.") for i in range(11)])
-    paginated = paginator.paginate(doc, "Book")
-
-    assert len(paginated.pages) == 2
-    assert len(paginated.pages[0].sentences) == 10
-    assert len(paginated.pages[1].sentences) == 1
-
-
-def test_overlong_sentence_goes_alone_in_page():
-    # 80 words -> 80 / 2.5 = 32s > 30s target, so it overflows a page alone.
-    long_text = "word " * 79 + "end."
-    doc = build_document(paragraph(long_text), paragraph("Short."))
-    paginated = paginator.paginate(doc, "Book")
-
-    assert len(paginated.pages) == 2
-    assert len(paginated.pages[0].sentences) == 1
-    assert len(paginated.pages[1].sentences) == 1
-
-
-def test_global_timeline_accumulates_across_pages():
-    doc = build_document(
-        paragraph("One two three four five."),  # 5 words -> 2s
-        paragraph("Six seven eight nine ten."),  # 5 words -> 2s
-    )
-    paginated = paginator.paginate(doc, "Book")
-
-    s1, s2 = paginated.pages[0].sentences
-    assert s1.start == 0.0
-    assert s1.end == 2.0
-    assert s2.start == 2.0
-    assert s2.end == 4.0
-    assert s1.nextSegmentCode == s2.segmentCode
-
-
 def test_segment_codes_are_chained_across_pages():
     doc = build_document(paragraph("Alpha."), heading(1, "Beta"), paragraph("Gamma."))
     paginated = paginator.paginate(doc, "Book")

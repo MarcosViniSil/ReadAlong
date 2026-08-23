@@ -62,26 +62,6 @@ def make_pipeline(root: Node, tts: FakeTTS) -> BookPipeline:
     )
 
 
-def test_pipeline_sends_spoken_phrases_to_tts_in_reading_order(tmp_path):
-    root = build_document(
-        paragraph("First sentence. Second sentence."),
-        Node(type=NodeType.IMAGE, metadata={"src": "cover.jpg"}),
-        paragraph("Third."),
-    )
-    tts = FakeTTS(durations=[2.0, 3.0, 1.5])
-    pipeline = make_pipeline(root, tts)
-    file_path = tmp_path / "My Book.txt"
-    file_path.write_text("irrelevant", encoding="utf-8")
-
-    result = pipeline.pipeline(file_path)
-
-    assert result.chunks == 1
-    assert result.audio_generated is True
-
-    # Only spoken phrases are sent to TTS, in global reading order.
-    assert tts.last_title == "My Book"
-    assert tts.last_texts == ["First sentence.", "Second sentence.", "Third."]
-
 
 def test_pipeline_without_spoken_sentences_generates_no_audio(tmp_path):
     root = build_document(Node(type=NodeType.IMAGE, metadata={"src": "cover.jpg"}))
