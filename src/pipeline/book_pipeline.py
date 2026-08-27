@@ -17,12 +17,13 @@ from queues.resultMerger import merge_results
 import logging
 
 from storage.book.bookRepositoryProvider import BookRepositoryProvider
+from storage.bucket.bucketProvider import BucketProvider
 
 logger = logging.getLogger(__name__)
 
 class BookPipeline():
 
-    def __init__(self, db2: BookRepositoryProvider,splitter: Splitter, chunker: Chunker, parser_factory: parserFactory.ParserFactory,filetypeDetection: FileTypeDetection, paginator: Paginator, audio_queue: AudioQueue,output_dir: Path = DEFAULT_OUTPUT_DIR):
+    def __init__(self, db2: BookRepositoryProvider,splitter: Splitter, chunker: Chunker, parser_factory: parserFactory.ParserFactory,filetypeDetection: FileTypeDetection, paginator: Paginator, audio_queue: AudioQueue,storageService:BucketProvider,output_dir: Path = DEFAULT_OUTPUT_DIR):
         self.splitter = splitter
         self.chunker = chunker
         self.parser_factory = parser_factory
@@ -31,6 +32,7 @@ class BookPipeline():
         self.audio_queue = audio_queue
         self.output_dir = output_dir
         self.db = db2
+        self.storageService = storageService
 
     async def pipeline(self, file_path: Path) -> PipelineResult:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
@@ -53,6 +55,7 @@ class BookPipeline():
             raise e
 
         try:
+            await self.storageService.upload("test.txt", "helo, world!")
             chunk_datas = self.chunker.chunk_book(paginated)
             await self.db.create(Book(book_url="test", author="test", completed_pages=0))
             messages = publish_book_chunks(self.audio_queue, paginated.book, chunk_datas)

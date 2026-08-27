@@ -1,14 +1,3 @@
-"""Book repository backed by the centralized PostgreSQL.
-
-The ``Database`` facade is injected in the constructor (same DI style as
-BookPipeline): the repo never imports a global connection, so tests can
-hand it a Database built on a fake pool.
-
-Per the agreed design, ALL statements run inside a ``transaction()``
-block: reads and writes share one borrowed connection, and the block
-commits on clean exit / rolls back on any error. The blocking psycopg
-calls run in worker threads inside the facade.
-"""
 from models.Book import Book
 from models.enum.BookStatus import BookStatus
 from storage.book.bookRepositoryProvider import BookRepositoryProvider

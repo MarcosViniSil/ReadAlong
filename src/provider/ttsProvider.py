@@ -31,6 +31,9 @@ def get_audio_queue() -> AudioQueue:
 def get_database(request: Request) -> Database:
     return request.app.state.db
 
+def get_storage(request: Request):
+    return request.app.state.storage
+
 def get_book_repository(
     db: Database = Depends(get_database),
 ) -> BookRepositoryProvider:
@@ -39,6 +42,7 @@ def get_book_repository(
 
 def getBookPipelineService(
     repository: BookRepositoryProvider = Depends(get_book_repository),
+    client: BookRepositoryImpl = Depends(get_storage)
 ) -> BookPipeline:
 
     return BookPipeline(
@@ -49,5 +53,6 @@ def getBookPipelineService(
         getfileTypeDetection(),
         getPaginator(),
         get_audio_queue(),
+        client,
     )
 

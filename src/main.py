@@ -1,24 +1,22 @@
 import json
 from pathlib import Path
 from urllib.parse import quote
-
 import uvicorn
 from fastapi import Depends, FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-
 from exceptions.register import register_exception_handlers
 from pipeline.book_pipeline import BookPipeline
 from provider.fileProvider import get_file_storage_service
 from provider.ttsProvider import getBookPipelineService
+from storage.book.impl.bookRepositoryImpl import BookRepositoryImpl
+from storage.bucket.impl.bucketProviderImpl import BucketProviderImpl
 from storage.connection.factory import create_pool
 from storage.fileStorageProvider import FileStorageProvider
-
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-
 from storage.connection import Database
+from storage.bucket.config import load_bucket_config
 
 
 AUDIO_DIR = Path("audio")
@@ -32,6 +30,15 @@ async def lifespan(app: FastAPI):
     await db.open()
 
     app.state.db = db
+
+    settings = load_bucket_config()
+    app.state.storage = BucketProviderImpl(
+        endpoint_url=settings.s3_endpoint,
+        access_key=settings.s3_access_key,
+        secret_key=settings.s3_secret_key,
+        bucket=settings.s3_bucket,
+        region=settings.s3_region,
+    )
 
     yield
 
