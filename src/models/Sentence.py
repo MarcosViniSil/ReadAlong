@@ -14,3 +14,4 @@ class Sentence:
     block_type: str = ""
     block_code: str = ""
     metadata: dict = field(default_factory=dict)
+    audio: dict = field(default_factory=dict)

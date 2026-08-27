@@ -11,13 +11,34 @@ from exceptions.register import register_exception_handlers
 from pipeline.book_pipeline import BookPipeline
 from provider.fileProvider import get_file_storage_service
 from provider.ttsProvider import getBookPipelineService
+from storage.connection.factory import create_pool
 from storage.fileStorageProvider import FileStorageProvider
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from storage.connection import Database
+
 
 AUDIO_DIR = Path("audio")
 FRONTEND_DIST = Path("frontend/dist")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    pool = create_pool()
+    db = Database(pool)
 
-app = FastAPI()
+    await db.open()
+
+    app.state.db = db
+
+    yield
+
+    await db.close()
+
+app = FastAPI(lifespan=lifespan)
+
 
 register_exception_handlers(app)
 
@@ -29,16 +50,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
 
 @app.post("/books")
-async def upload_book(file: UploadFile = File(...), bookPipeline:BookPipeline = Depends(getBookPipelineService),fileStorageService:FileStorageProvider = Depends(get_file_storage_service)):
+async def upload_book(file: UploadFile = File(...), bookPipeline:BookPipeline = Depends(getBookPipelineService),fileStorageService:FileStorageProvider = Depends(get_file_storage_service),pipeline: BookPipeline = Depends(getBookPipelineService)):
     filePath = fileStorageService.save_file(file)
 
-    return bookPipeline.pipeline(filePath)
+    return await pipeline.pipeline(filePath)
 
 @app.get("/books")
 def list_books():

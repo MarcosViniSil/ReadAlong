@@ -1,19 +1,23 @@
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from parsers.factory.parserFactory import ParserFactory
 from pipeline.book_pipeline import BookPipeline
+from processing.chunker import Chunker
 from processing.paginator import Paginator
 from processing.sentence_splitter import Splitter
 from provider.fileInspectionProvider import getfileTypeDetection
 from provider.parseFactoryProvider import getParseFactory
-from tts import TTSProvider
-from tts.imp.TTSProviderImpl import KokoroProviderImpl
+from queues.redisQueue import AudioQueue
+from storage.book.bookRepositoryProvider import BookRepositoryProvider
+from storage.book.impl.bookRepositoryImpl import BookRepositoryImpl
+from storage.connection.database import Database
+from storage.connection.factory import create_pool
 
 def getSplitter() -> Splitter:
     return Splitter()
 
-def getTTSProvider() -> TTSProvider:
-    return KokoroProviderImpl()
+def getChunker() -> Chunker:
+    return Chunker()
 
 def getPaginator() -> Paginator:
     return Paginator()
@@ -21,12 +25,29 @@ def getPaginator() -> Paginator:
 def get_parser_factory() -> ParserFactory:
     return ParserFactory()
 
-def getBookPipelineService() -> BookPipeline:
+def get_audio_queue() -> AudioQueue:
+    return AudioQueue()
+
+def get_database(request: Request) -> Database:
+    return request.app.state.db
+
+def get_book_repository(
+    db: Database = Depends(get_database),
+) -> BookRepositoryProvider:
+
+    return BookRepositoryImpl(db)
+
+def getBookPipelineService(
+    repository: BookRepositoryProvider = Depends(get_book_repository),
+) -> BookPipeline:
+
     return BookPipeline(
+        repository,
         getSplitter(),
-        getTTSProvider(),
+        getChunker(),
         getParseFactory(),
         getfileTypeDetection(),
-        getPaginator()
+        getPaginator(),
+        get_audio_queue(),
     )
 

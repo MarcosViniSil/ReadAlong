@@ -1,31 +1,38 @@
 from pathlib import Path
 from exceptions.PipelineException import BookProcessingError
-from export.bookExporter import DEFAULT_OUTPUT_DIR, write_book_json
+from export.bookExporter import DEFAULT_OUTPUT_DIR
 from export.pageTree import write_page_jsons
 from file_inspection.provider.fileTypeDetectionProvider import FileTypeDetection
 from log.loggerService import LoggerService
+from models.Book import Book
 from models.PipelineResult import PipelineResult
-from models.SentenceType import SentenceType
 from models.enum.BookStatus import BookStatus
 from parsers.factory import parserFactory
-from processing.paginator import PaginatedBook, Paginator
+from processing.chunker import Chunker
+from processing.paginator import Paginator
 from processing.sentence_splitter import Splitter
-from tts.TTSProvider import TTSProvider
+from queues.audioProducer import publish_book_chunks
+from queues.redisQueue import AudioQueue
+from queues.resultMerger import merge_results
 import logging
+
+from storage.book.bookRepositoryProvider import BookRepositoryProvider
 
 logger = logging.getLogger(__name__)
 
 class BookPipeline():
 
-    def __init__(self,splitter:Splitter,ttsService:TTSProvider,parser_factory: parserFactory.ParserFactory, filetypeDetection: FileTypeDetection, paginator: Paginator, output_dir: Path = DEFAULT_OUTPUT_DIR):
+    def __init__(self, db2: BookRepositoryProvider,splitter: Splitter, chunker: Chunker, parser_factory: parserFactory.ParserFactory,filetypeDetection: FileTypeDetection, paginator: Paginator, audio_queue: AudioQueue,output_dir: Path = DEFAULT_OUTPUT_DIR):
         self.splitter = splitter
-        self.ttsService = ttsService
+        self.chunker = chunker
         self.parser_factory = parser_factory
         self.filetypeDetection = filetypeDetection
         self.paginator = paginator
+        self.audio_queue = audio_queue
         self.output_dir = output_dir
+        self.db = db2
 
-    def pipeline(self,file_path: Path) -> None:
+    async def pipeline(self, file_path: Path) -> PipelineResult:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
 
         try:
@@ -46,11 +53,17 @@ class BookPipeline():
             raise e
 
         try:
-            #self.__generate_audio(paginated)
-            #json_path = write_book_json(paginated, self.output_dir)
-            write_page_jsons(paginated, self.output_dir)
-            paginated.book.status = BookStatus.COMPLETED
-            paginated.book.completed_pages = paginated.book.total_pages
+            chunk_datas = self.chunker.chunk_book(paginated)
+            await self.db.create(Book(book_url="test", author="test", completed_pages=0))
+            messages = publish_book_chunks(self.audio_queue, paginated.book, chunk_datas)
+#
+            #expected_chunk_ids = {m["chunk_id"] for m in messages}
+            #responses = self.audio_queue.wait_for_results(expected_chunk_ids) if #expected_chunk_ids else {}
+#
+            #merge_results(paginated, responses, chunk_datas)
+            #write_page_jsons(paginated, self.output_dir)
+            #paginated.book.status = BookStatus.COMPLETED
+            #paginated.book.completed_pages = paginated.book.total_pages
         except Exception as e:
             LoggerService.log_exception(
                 "Error generating audio for %s",
@@ -58,38 +71,10 @@ class BookPipeline():
             )
             raise BookProcessingError("An error occurred when trying to generate audio")
 
-        return PipelineResult(
-            file_path=file_path,
-            chunks=len(paginated.pages),
-            audio_generated=bool(paginated.pages and paginated.audio_file),
-            json_path=str("")
-        )
-
-    def __generate_audio(self, paginated: PaginatedBook) -> None:
-        spoken = [
-            sentence
-            for page_data in paginated.pages
-            for sentence in page_data.sentences
-            if sentence.sentenceType == SentenceType.TEXT and sentence.text
-        ]
-
-        if not spoken:
-            LoggerService.log_warning("BookPipeline - no spoken sentences to synthesize")
-            return
-
-        transcription = self.ttsService.generate(
-            paginated.book.title,
-            [sentence.text for sentence in spoken]
-        )
-
-        for sentence, duration in zip(spoken, transcription.durations):
-            sentence.duration = duration
-
-        cursor = 0.0
-        for page_data in paginated.pages:
-            for sentence in page_data.sentences:
-                sentence.start = cursor
-                cursor += sentence.duration
-                sentence.end = cursor
-
-        paginated.audio_file = transcription.audio_path
+        #return PipelineResult(
+        #    file_path=file_path,
+        #    chunks=len(chunk_datas),
+        #    audio_generated=len(responses) == len(chunk_datas) if chunk_datas else False,
+        #    json_path=str("")
+        #)
+        return ""

@@ -8,5 +8,3 @@ class FileStorageProvider(ABC):
     @abstractmethod
     def save_file(self,file: UploadFile) -> Path:
         pass
-
-        
