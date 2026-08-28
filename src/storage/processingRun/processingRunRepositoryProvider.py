@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 import uuid
+from models import ProcessingRun
 from models.enum import BookStatus
 
 
 class ProcessingRunRepositoryProvider(ABC):
 
     @abstractmethod
-    async def create(self, book_id: uuid, page_size: int = 0):
+    async def create(self, book_id: uuid, page_size: int = 0) -> ProcessingRun:
         pass
 
     @abstractmethod

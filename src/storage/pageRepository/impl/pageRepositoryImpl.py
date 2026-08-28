@@ -15,7 +15,7 @@ class PageRepositoryImpl(PageRepositoryProvider):
             id=str(row["id"]),
             processing_run_id=str(row["processing_run_id"]),
             sequence=row["sequence"],
-            text=row["text"],
+            page_url=row["page_url"],
             sentence_count=row["sentence_count"],
             status=BookStatus(row["status"]),
             created_at=row["created_at"],
@@ -26,11 +26,11 @@ class PageRepositoryImpl(PageRepositoryProvider):
         async with self._db.transaction() as tx:
             row = await tx.fetchone(
                 """
-                INSERT INTO pages (processing_run_id, sequence, text, sentence_count, status)
+                INSERT INTO pages (processing_run_id, sequence, page_url, sentence_count, status)
                 VALUES (%s, %s, %s, %s, %s)
                 RETURNING *
                 """,
-                [page.processing_run_id, page.sequence, page.text,
+                [page.processing_run_id, page.sequence, page.page_url,
                  page.sentence_count, str(page.status)],
             )
         return self._page_from_row(row)

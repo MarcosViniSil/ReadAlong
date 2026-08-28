@@ -8,6 +8,8 @@ from processing.sentence_splitter import Splitter
 from provider.fileInspectionProvider import getfileTypeDetection
 from provider.parseFactoryProvider import getParseFactory
 from queues.redisQueue import AudioQueue
+from storage.pageRepository.impl.pageRepositoryImpl import PageRepositoryImpl
+from storage.pageRepository.pageRepositoryProvider import PageRepositoryProvider
 from storage.processingRun.impl.ProcessingRunRepositoryImpl import ProcessingRunRepositoryImpl
 from storage.processingRun.processingRunRepositoryProvider  import ProcessingRunRepositoryProvider
 from storage.book.bookRepositoryProvider import BookRepositoryProvider
@@ -48,9 +50,16 @@ def get_processing_run_repository(
 
     return ProcessingRunRepositoryImpl(db)
 
+def get_page_repository(
+    db: Database = Depends(get_database),
+) -> PageRepositoryProvider:
+
+    return PageRepositoryImpl(db)
+
 def getBookPipelineService(
     repository: BookRepositoryProvider = Depends(get_book_repository),
     processing_run_repository: ProcessingRunRepositoryProvider = Depends(get_processing_run_repository),
+    page_repository:PageRepositoryProvider = Depends(get_page_repository),
     client: BookRepositoryImpl = Depends(get_storage)
 ) -> BookPipeline:
 
@@ -64,5 +73,6 @@ def getBookPipelineService(
         get_audio_queue(),
         client,
         processing_run_repository,
+        page_repository,
     )
 

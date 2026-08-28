@@ -19,12 +19,6 @@ from processing.paginator import PageData, PaginatedBook
 
 @dataclass
 class ChunkData:
-    """Pipeline view of a chunk: the persisted record plus its sentences.
-
-    ``chunk`` is the DB-shaped Chunk (id/page_id/sequence/text/status);
-    ``page`` is the DB-shaped Page it belongs to (for page_code/page_id);
-    ``sentences`` are the Sentence objects that compose it, in order.
-    """
     chunk: Chunk
     page: Page
     sentences: list[Sentence] = field(default_factory=list)

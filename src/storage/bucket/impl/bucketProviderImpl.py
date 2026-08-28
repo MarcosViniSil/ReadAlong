@@ -24,11 +24,17 @@ class BucketProviderImpl(BucketProvider):
         )
 
 
-    async def upload(self, key, data):
-        self.client.put_object(
+    async def upload(self, key, file_path, content_type: str | None = None):
+        extra_args = {}
+
+        if content_type:
+            extra_args["ContentType"] = content_type
+
+        self.client.upload_file(
+            Filename=str(file_path),
             Bucket=self.bucket,
             Key=key,
-            Body=data
+            ExtraArgs=extra_args or None,
         )
 
     async def download(self, key):

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class BucketProvider(ABC):
 
     @abstractmethod
-    async def upload(self, key, data):
+    async def upload(self, key, data,content_type):
         pass
 
     @abstractmethod

@@ -27,23 +27,12 @@ class ReadingUnit:
 
 @dataclass
 class PageData:
-    """Pipeline view of a page: the persisted record plus its sentences.
-
-    ``page`` is the DB-shaped Page (sequence/text/sentence_count/status);
-    ``sentences`` carries the semantic detail the DB schema does not model
-    (types, block grouping, per-sentence timings).
-    """
     page: Page
     sentences: list[Sentence]
 
 
 @dataclass
 class PaginatedBook:
-    """Result of pagination: the DB-shaped Book record plus its pages.
-
-    ``pages`` are PageData (record + sentences); ``audio_file`` is filled by
-    the pipeline once TTS finishes (single concatenated audio per book).
-    """
     book: Book
     pages: list[PageData]
     audio_file: str = ""
@@ -241,7 +230,7 @@ class Paginator:
                 id="",
                 processing_run_id="",
                 sequence=sequence,
-                text=" ".join(s.text for s in sentences if s.text).strip(),
+                page_url="",
                 sentence_count=len(sentences),
                 status=BookStatus.COMPLETED,
                 created_at=None,
