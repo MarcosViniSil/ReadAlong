@@ -63,7 +63,7 @@ def _node(node_id: str, node_type: str, content, metadata: dict, children: list,
 
 
 def _sentence_node(sentence) -> dict:
-    return _node(
+    node = _node(
         sentence.segmentCode,
         "sentence",
         sentence.text or None,
@@ -73,6 +73,11 @@ def _sentence_node(sentence) -> dict:
         next_segment_code=sentence.nextSegmentCode or None,
         spoken=sentence.sentenceType == SentenceType.TEXT and bool(sentence.text),
     )
+    # The queue merger fills sentence.audio with real timings; when present
+    # they override the empty placeholder.
+    if sentence.audio:
+        node["audio"] = sentence.audio
+    return node
 
 
 def _json_type(block_type: str) -> str:

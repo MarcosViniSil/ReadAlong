@@ -99,7 +99,7 @@ CREATE TABLE pages (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     processing_run_id UUID NOT NULL REFERENCES processing_runs(id) ON DELETE CASCADE,
     sequence          INTEGER NOT NULL,
-    text              TEXT NOT NULL,
+    page_url          TEXT NOT NULL,
     sentence_count    INTEGER NOT NULL DEFAULT 0,
     status            book_status NOT NULL,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -3,7 +3,7 @@ import datetime
 from models.enum import BookStatus
 
 @dataclass
-class ProcessingRun:
+class Chunk:
     id: str
     page_id: str
     sequence: int
