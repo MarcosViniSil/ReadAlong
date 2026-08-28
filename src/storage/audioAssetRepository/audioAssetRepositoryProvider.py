@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
-from models import AudioAsset
-from models.Book import Book
+from models.AudioAsset import AudioAsset
 from models.enum import BookStatus
 
 

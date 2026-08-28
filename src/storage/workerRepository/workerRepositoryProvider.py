@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
-from models import WorkerMetric
-from models.Book import Book
-from models.enum import BookStatus, WorkerStatus
+from models.WorkerMetric import WorkerMetric
+from models.enum import WorkerStatus
 from models.worker import Worker
 
 
