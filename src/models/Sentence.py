@@ -15,3 +15,4 @@ class Sentence:
     block_code: str = ""
     metadata: dict = field(default_factory=dict)
     audio: dict = field(default_factory=dict)
+    id: str | None = None

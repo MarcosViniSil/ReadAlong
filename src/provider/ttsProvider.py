@@ -8,6 +8,10 @@ from processing.sentence_splitter import Splitter
 from provider.fileInspectionProvider import getfileTypeDetection
 from provider.parseFactoryProvider import getParseFactory
 from queues.redisQueue import AudioQueue
+from storage.audioAssetRepository.audioAssetRepositoryProvider import AudioAssetRepositoryProvider
+from storage.audioAssetRepository.impl.audioAssetRepositoryImpl import AudioAssetRepositoryImpl
+from storage.chunkRepository.chunkRepositoryProvider import ChunkRepositoryProvider
+from storage.chunkRepository.impl.ChunkRepositoryImpl import ChunkRepositoryImpl
 from storage.pageRepository.impl.pageRepositoryImpl import PageRepositoryImpl
 from storage.pageRepository.pageRepositoryProvider import PageRepositoryProvider
 from storage.processingRun.impl.ProcessingRunRepositoryImpl import ProcessingRunRepositoryImpl
@@ -56,10 +60,24 @@ def get_page_repository(
 
     return PageRepositoryImpl(db)
 
+def get_chunk_repository(
+    db: Database = Depends(get_database),
+) -> ChunkRepositoryProvider:
+
+    return ChunkRepositoryImpl(db)
+
+def get_audio_asset_repository(
+    db: Database = Depends(get_database),
+) -> AudioAssetRepositoryProvider:
+
+    return AudioAssetRepositoryImpl(db)
+
 def getBookPipelineService(
     repository: BookRepositoryProvider = Depends(get_book_repository),
     processing_run_repository: ProcessingRunRepositoryProvider = Depends(get_processing_run_repository),
     page_repository:PageRepositoryProvider = Depends(get_page_repository),
+    chunk_repository:ChunkRepositoryProvider = Depends(get_chunk_repository),
+    audio_asset_repository: AudioAssetRepositoryProvider = Depends(get_audio_asset_repository),
     client: BookRepositoryImpl = Depends(get_storage)
 ) -> BookPipeline:
 
@@ -74,5 +92,7 @@ def getBookPipelineService(
         client,
         processing_run_repository,
         page_repository,
+        chunk_repository,
+        audio_asset_repository,
     )
 

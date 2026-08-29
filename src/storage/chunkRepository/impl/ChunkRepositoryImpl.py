@@ -25,11 +25,11 @@ class ChunkRepositoryImpl(ChunkRepositoryProvider):
         async with self._db.transaction() as tx:
             row = await tx.fetchone(
                 """
-                INSERT INTO chunks (page_id, sequence, text, status)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO chunks (id, page_id, sequence, text, status)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING *
                 """,
-                [chunk.page_id, chunk.sequence, chunk.text, str(chunk.status)],
+                [chunk.id, chunk.page_id, chunk.sequence, chunk.text, str(chunk.status)],
             )
         return self._chunk_from_row(row)
 
@@ -39,11 +39,11 @@ class ChunkRepositoryImpl(ChunkRepositoryProvider):
             for chunk in chunks:
                 row = await tx.fetchone(
                     """
-                    INSERT INTO chunks (page_id, sequence, text, status)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO chunks (id, page_id, sequence, text, status)
+                    VALUES (%s, %s, %s, %s, %s)
                     RETURNING *
                     """,
-                    [chunk.page_id, chunk.sequence, chunk.text, str(chunk.status)],
+                    [chunk.id, chunk.page_id, chunk.sequence, chunk.text, str(chunk.status)],
                 )
                 created.append(self._chunk_from_row(row))
         return created

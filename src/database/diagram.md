@@ -46,7 +46,7 @@ erDiagram
         uuid id PK
         uuid processing_run_id FK
         int sequence
-        text text
+        text page_url
         int sentence_count
         book_status status
         timestamp created_at

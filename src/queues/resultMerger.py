@@ -6,7 +6,6 @@ three-stage merge: correlate → shift → inject.
 """
 from processing.chunker import ChunkData
 from processing.paginator import PageData, PaginatedBook
-from models.SentenceType import SentenceType
 
 
 def merge_results(paginated: PaginatedBook, responses: dict[str, dict],
@@ -46,8 +45,8 @@ def _merge_page(page_data: PageData, responses: dict[str, dict],
 
         chunk_duration = 0.0
         for sentence in chunk_data.sentences:
-            if sentence.sentenceType != SentenceType.TEXT or not sentence.text:
-                continue  # non-spoken markers never carry audio
+            if not sentence.text:
+                continue  # empty markers (image/formula) never carry audio
 
             timings = by_segment.get(sentence.segmentCode)
             if timings is None:

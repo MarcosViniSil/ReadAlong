@@ -3,27 +3,22 @@
 Each page becomes a recursive tree node {id, type, segmentCode,
 nextSegmentCode, content, metadata, children} plus a top-level
 nextPageCode on the page itself. Segment codes are only filled on
-sentence nodes; pages and blocks carry null. The ``audio`` key only
-appears on nodes with speakable text (text sentences, headings, code);
-containers and non-spoken markers (paragraph, image, latex, table,
-page, ...) omit it entirely. Audio timings stay null until chunking is
-implemented. Block grouping comes from the block_code the paginator
+sentence nodes; pages and blocks carry null. The ``audio`` key appears
+as null on every node with speakable content (sentences, headings,
+code, tables, list items, quote sentences) and is replaced by real
+timings once the TTS merge runs; containers (page, paragraph, list,
+quote, ...) and empty markers (image, latex) omit it. The ``id`` of a
+spoken node (sentences, headings, code, tables) is the chunk uuid the
+chunker stamps on ``sentence.id`` — the same id persisted in the
+``chunks`` table — falling back to ``segmentCode``/``block_code`` when
+no chunk exists yet; pure containers use their ``block_code``. Block grouping comes from the block_code the paginator
 stamps on every Sentence, so paragraph boundaries survive pagination.
 """
 import json
 from pathlib import Path
 
 from export.bookExporter import DEFAULT_OUTPUT_DIR, book_code, page_code
-from models.SentenceType import SentenceType
 from processing.paginator import PaginatedBook, PageData
-
-_EMPTY_AUDIO = {
-    "chunk_id": None,
-    "start": None,
-    "end": None,
-    "duration": None,
-    "words": [],
-}
 
 _BLOCK_TYPE_TO_JSON_TYPE = {
     "Paragraph": "paragraph",
@@ -47,7 +42,7 @@ _SENTENCE_TYPE_TO_BLOCK_TYPE = {
 
 def _node(node_id: str, node_type: str, content, metadata: dict, children: list,
           segment_code: str | None = None, next_segment_code: str | None = None,
-          spoken: bool = False) -> dict:
+          spoken: bool | None = None) -> dict:
     node = {
         "id": node_id,
         "type": node_type,
@@ -57,27 +52,29 @@ def _node(node_id: str, node_type: str, content, metadata: dict, children: list,
         "metadata": metadata,
         "children": children,
     }
+    # Every node with speakable content gets an ``audio`` slot, null until
+    # the TTS merge fills it. Containers pass spoken=False to stay without.
+    if spoken is None:
+        spoken = content is not None
     if spoken:
-        node["audio"] = dict(_EMPTY_AUDIO)
+        node["audio"] = None
     return node
 
 
 def _sentence_node(sentence) -> dict:
-    node = _node(
-        sentence.segmentCode,
+    # The chunker stamps the chunk uuid (the id persisted in the ``chunks``
+    # table) onto every spoken sentence; that uuid is the node's stable
+    # identity. ``audio`` stays null here — the TTS merge fills it later.
+    print(sentence)
+    return _node(
+        sentence.id or sentence.segmentCode,
         "sentence",
         sentence.text or None,
         {"sentenceType": sentence.sentenceType.value},
         [],
         segment_code=sentence.segmentCode,
         next_segment_code=sentence.nextSegmentCode or None,
-        spoken=sentence.sentenceType == SentenceType.TEXT and bool(sentence.text),
     )
-    # The queue merger fills sentence.audio with real timings; when present
-    # they override the empty placeholder.
-    if sentence.audio:
-        node["audio"] = sentence.audio
-    return node
 
 
 def _json_type(block_type: str) -> str:
@@ -135,12 +132,13 @@ def _serialize_block(block: dict) -> dict:
     code = block["block_code"]
 
     if block_type == "Heading":
-        return _node(code, "heading", " ".join(s.text for s in sentences if s.text).strip(),
-                     {"level": first.metadata.get("level", 1)}, [], spoken=True)
+        return _node(first.id or code, "heading",
+                     " ".join(s.text for s in sentences if s.text).strip(),
+                     {"level": first.metadata.get("level", 1)}, [])
 
     if block_type == "Code":
-        return _node(code, "code", " ".join(s.text for s in sentences if s.text).strip(), {}, [],
-                     spoken=True)
+        return _node(first.id or code, "code",
+                     " ".join(s.text for s in sentences if s.text).strip(), {}, [])
 
     if block_type == "Image":
         return _node(code, "image", None, {"src": first.metadata.get("src")}, [])
@@ -149,7 +147,7 @@ def _serialize_block(block: dict) -> dict:
         return _node(code, "latex", None, {"raw": first.metadata.get("raw")}, [])
 
     if block_type == "Table":
-        return _node(code, "table", first.text, {}, [])
+        return _node(first.id or code, "table", first.text, {}, [])
 
     if block_type == "Quote":
         return _node(code, "quote", None, {}, [_sentence_node(s) for s in sentences])
@@ -181,6 +179,7 @@ def serialize_page(page_data: PageData, next_page_code: str = "") -> dict:
             "pageCode": page_code(page_data.page.sequence),
         },
         children,
+        spoken=False,
     )
     node["nextPageCode"] = next_page_code
     return node
