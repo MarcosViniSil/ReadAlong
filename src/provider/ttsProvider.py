@@ -12,6 +12,8 @@ from storage.audioAssetRepository.audioAssetRepositoryProvider import AudioAsset
 from storage.audioAssetRepository.impl.audioAssetRepositoryImpl import AudioAssetRepositoryImpl
 from storage.chunkRepository.chunkRepositoryProvider import ChunkRepositoryProvider
 from storage.chunkRepository.impl.ChunkRepositoryImpl import ChunkRepositoryImpl
+from storage.jobRepository.impl.jobRepositoryImpl import JobRepositoryImpl
+from storage.jobRepository.jobRepositoryProvider import JobRepositoryProvider
 from storage.pageRepository.impl.pageRepositoryImpl import PageRepositoryImpl
 from storage.pageRepository.pageRepositoryProvider import PageRepositoryProvider
 from storage.processingRun.impl.ProcessingRunRepositoryImpl import ProcessingRunRepositoryImpl
@@ -72,12 +74,19 @@ def get_audio_asset_repository(
 
     return AudioAssetRepositoryImpl(db)
 
+def get_job_repository(
+    db: Database = Depends(get_database),
+) -> JobRepositoryProvider:
+
+    return JobRepositoryImpl(db)
+
 def getBookPipelineService(
     repository: BookRepositoryProvider = Depends(get_book_repository),
     processing_run_repository: ProcessingRunRepositoryProvider = Depends(get_processing_run_repository),
     page_repository:PageRepositoryProvider = Depends(get_page_repository),
     chunk_repository:ChunkRepositoryProvider = Depends(get_chunk_repository),
     audio_asset_repository: AudioAssetRepositoryProvider = Depends(get_audio_asset_repository),
+    job_repository: JobRepositoryProvider = Depends(get_job_repository),
     client: BookRepositoryImpl = Depends(get_storage)
 ) -> BookPipeline:
 
@@ -94,5 +103,6 @@ def getBookPipelineService(
         page_repository,
         chunk_repository,
         audio_asset_repository,
+        job_repository,
     )
 

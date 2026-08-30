@@ -5,22 +5,25 @@ from export.bookExporter import DEFAULT_OUTPUT_DIR, book_code, page_code
 from export.pageTree import write_page_jsons
 from file_inspection.provider.fileTypeDetectionProvider import FileTypeDetection
 from log.loggerService import LoggerService
+from models.Job import Job
 from models.AudioAsset import AudioAsset
 from models.Page import Page
 from models.ProcessingRun import ProcessingRun
 from models.Book import Book
 from models.PipelineResult import PipelineResult
+from models.chunk import Chunk
 from models.enum.BookStatus import BookStatus
 from parsers.factory import parserFactory
 from processing.chunker import ChunkData, Chunker
 from processing.paginator import PaginatedBook, Paginator
 from processing.sentence_splitter import Splitter
-from queues.audioProducer import publish_book_chunks
+from queues.audioProducer import publish_messages
 from queues.redisQueue import AudioQueue
 from queues.resultMerger import merge_results
 import logging
 from storage.audioAssetRepository.audioAssetRepositoryProvider import AudioAssetRepositoryProvider
 from storage.chunkRepository.chunkRepositoryProvider import ChunkRepositoryProvider
+from storage.jobRepository.jobRepositoryProvider import JobRepositoryProvider
 from storage.pageRepository.pageRepositoryProvider import PageRepositoryProvider
 from storage.processingRun.processingRunRepositoryProvider import ProcessingRunRepositoryProvider
 from storage.book.bookRepositoryProvider import BookRepositoryProvider
@@ -30,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class BookPipeline():
 
-    def __init__(self, db2: BookRepositoryProvider,splitter: Splitter, chunker: Chunker, parser_factory: parserFactory.ParserFactory,filetypeDetection: FileTypeDetection, paginator: Paginator, audio_queue: AudioQueue,storageService:BucketProvider,processing_run_repository:ProcessingRunRepositoryProvider,pageRepository: PageRepositoryProvider,chunk_repository: ChunkRepositoryProvider,audio_asset_repository: AudioAssetRepositoryProvider,output_dir: Path = DEFAULT_OUTPUT_DIR):
+    def __init__(self, db2: BookRepositoryProvider,splitter: Splitter, chunker: Chunker, parser_factory: parserFactory.ParserFactory,filetypeDetection: FileTypeDetection, paginator: Paginator, audio_queue: AudioQueue,storageService:BucketProvider,processing_run_repository:ProcessingRunRepositoryProvider,pageRepository: PageRepositoryProvider,chunk_repository: ChunkRepositoryProvider,audio_asset_repository: AudioAssetRepositoryProvider,jobRepository:JobRepositoryProvider,output_dir: Path = DEFAULT_OUTPUT_DIR):
         self.splitter = splitter
         self.chunker = chunker
         self.parser_factory = parser_factory
@@ -44,6 +47,7 @@ class BookPipeline():
         self.pageRepository = pageRepository
         self.chunk_repository = chunk_repository
         self.audio_asset_repository = audio_asset_repository
+        self.jobRepository = jobRepository
 
     async def pipeline(self, file_path: Path) -> PipelineResult:
         LoggerService.log_info(f"BookPipeline - received file_path {file_path} to create audio")
@@ -101,14 +105,21 @@ class BookPipeline():
                 db_page = pages_by_sequence[chunk.page.sequence]
                 chunk.chunk.page_id = db_page.id
                 chunk.page = db_page
-            await self.chunk_repository.create_many([cd.chunk for cd in chunk_data])
+            chunks_created:list[Chunk] = await self.chunk_repository.create_many([cd.chunk for cd in chunk_data])
 
             # 3) Queue round-trip: one job per chunk, wait for all results,
             #    merge word timings into each sentence's audio block.
-            messages = publish_book_chunks(self.audio_queue, book, chunk_data)
-            expected_chunk_ids = {m["chunk_id"] for m in messages}
+            #messages = publish_book_chunks(self.audio_queue, book, chunk_data)
+            #expected_chunk_ids = {m["chunk_id"] for m in messages}
             #responses = self.audio_queue.wait_for_results(expected_chunk_ids) if #expected_chunk_ids else {}
             #merge_results(paginated, responses, chunk_datas)
+
+            jobs_created: list[Job] = await self.jobRepository.create_many(
+                    [chunk.id for chunk in chunks_created])
+
+            jobs_id = [{"job_id":job.id} for job in jobs_created]
+            
+            publish_messages(self.audio_queue,jobs_id)
 
             ## 4) Record each generated audio asset and mark its chunk done.
             #for chunk_data in chunk_datas:
